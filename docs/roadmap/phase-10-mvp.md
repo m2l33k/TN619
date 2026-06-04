@@ -31,7 +31,8 @@ interpreter (LLVM/Cranelift swap in later). ~2,470 LOC across 7 modules
 - [ ] References + `&mut self` (needs a real reference value; blocks mutation
       through methods).
 - [ ] Arrays / slices / `Vec`; indexing.
-- [ ] `f64` and the full numeric type tower; sized ints.
+- [x] **`f64` floats + `as` numeric casts** (int↔float). _(Sized/unsigned ints
+      `i8..i64`/`u8..u64` still pending.)_
 - [ ] More string ops (concatenation, methods). _(Interpolation is done.)_
 - [ ] `while let`, `loop` with `break value`, labeled loops.
 - [ ] Closures / lambdas.

@@ -114,6 +114,19 @@ fn interp_ar() {
 }
 
 #[test]
+fn floats_en() {
+    assert_eq!(
+        run_ok("floats_en.tn"),
+        "area: 12.56636\n7/2 as float: 3.5\n3.9 as int: 3\nis 2.5 > 2.0? true\n"
+    );
+}
+
+#[test]
+fn floats_ar() {
+    assert_eq!(run_ok("floats_ar.tn"), "المساحة: 12.56636\n٧/٢ عشري: 3.5\n");
+}
+
+#[test]
 fn polyglot() {
     assert_eq!(
         run_ok("polyglot.tn"),

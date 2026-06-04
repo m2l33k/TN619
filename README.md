@@ -61,6 +61,9 @@ cargo run -- run examples/mixed.tn         # mixed
 cargo run -- run examples/polyglot.tn      # English + Arabic combined in ONE program
 cargo run -- run examples/interp_en.tn     # string interpolation (English)
 cargo run -- run examples/interp_ar.tn     # string interpolation (Arabic)
+cargo run -- run examples/floats_en.tn     # f64 + numeric casts (English)
+cargo run -- run examples/floats_ar.tn     # f64 + numeric casts (Arabic)
+cargo run -- serve                          # web playground at http://127.0.0.1:8080
 cargo run -- run examples/shapes_en.tn     # structs + enums + match (English)
 cargo run -- run examples/shapes_ar.tn     # structs + enums + match (Arabic)
 cargo run -- run examples/points_en.tn     # methods + associated functions (English)

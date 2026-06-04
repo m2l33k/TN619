@@ -22,6 +22,7 @@ pub enum TokenKind {
     Enum,   // enum  / تعداد
     Match,  // match / طابق
     Impl,   // impl  / تطبيق
+    As,     // as    / كـ  (numeric cast)
 
     // Literals
     Int(i64),
@@ -98,6 +99,7 @@ pub fn keyword(word: &str) -> Option<TokenKind> {
         "enum" | "تعداد" => Enum,
         "match" | "طابق" => Match,
         "impl" | "تطبيق" => Impl,
+        "as" | "كـ" => As,
         _ => return None,
     };
     Some(k)

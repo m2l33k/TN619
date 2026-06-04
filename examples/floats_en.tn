@@ -1,0 +1,17 @@
+// TN619 — floating-point numbers and numeric casts (English surface)
+fn circle_area(r: f64) -> f64 {
+    3.14159 * r * r
+}
+
+fn main() {
+    let r = 2.0
+    print("area:", circle_area(r))
+
+    let half = 7 as f64 / 2.0      // int -> f64 cast, then float division
+    print("7/2 as float:", half)
+
+    let n = 3.9 as int             // f64 -> int (truncates)
+    print("3.9 as int:", n)
+
+    print("is 2.5 > 2.0?", 2.5 > 2.0)
+}

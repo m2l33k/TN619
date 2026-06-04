@@ -394,7 +394,10 @@ impl Checker {
                 if numeric(&from) && numeric(&to) {
                     Ok(to)
                 } else {
-                    Err(format!("cannot cast `{}` to `{}` (numeric casts only)", from, to))
+                    Err(format!(
+                        "cannot cast `{}` to `{}` (numeric casts only)",
+                        from, to
+                    ))
                 }
             }
             ExprKind::Unary { op, rhs } => match op {

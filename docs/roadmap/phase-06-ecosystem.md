@@ -4,7 +4,10 @@
 
 ## ✅ Done
 - [x] Tool names reserved: `tnpkg`, `tn build`, `tnfmt`, `tnlint`, `tndoc`, `tnls`.
-- [x] CLI skeleton exists (`tnc run|check|tokens`).
+- [x] CLI: `tnc run|check|tokens|serve`.
+- [x] **Web playground** (`tnc serve`) — dependency-free HTTP server (`server.rs`,
+      std only) serving an in-browser editor that runs TN619 (EN/AR/mixed) via a
+      `/run` endpoint. The shareable demo. _(Hosted/WASM version is a follow-up.)_
 
 ## ⬜ Not done (everything)
 - [ ] **`tnpkg`** — package manager: manifest format, registry, dependency

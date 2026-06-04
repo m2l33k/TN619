@@ -12,6 +12,7 @@ use std::fmt;
 #[derive(Debug, Clone)]
 pub enum Value {
     Int(i64),
+    Float(f64),
     Bool(bool),
     Str(String),
     Unit,
@@ -30,6 +31,15 @@ impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Value::Int(n) => write!(f, "{}", n),
+            Value::Float(x) => {
+                // Keep a decimal point so floats read as floats (2.0, not 2).
+                let s = format!("{}", x);
+                if s.contains('.') || s.contains('e') || s.contains("inf") || s.contains("NaN") {
+                    write!(f, "{}", s)
+                } else {
+                    write!(f, "{}.0", s)
+                }
+            }
             Value::Bool(b) => write!(f, "{}", if *b { "true" } else { "false" }),
             Value::Str(s) => write!(f, "{}", s),
             Value::Unit => write!(f, "()"),
@@ -88,6 +98,8 @@ pub struct Interp {
     /// (type name, method name) -> method.
     methods: HashMap<(String, String), MethodDecl>,
     scopes: Vec<Scope>, // current call frame's scope stack
+    /// Captured program output (what `print`/`اطبع` produced).
+    out: String,
 }
 
 impl Interp {
@@ -98,10 +110,12 @@ impl Interp {
             variants: HashMap::new(),
             methods: HashMap::new(),
             scopes: vec![],
+            out: String::new(),
         }
     }
 
-    pub fn run(&mut self, prog: &Program) -> Result<(), String> {
+    /// Run the program, returning its captured stdout on success.
+    pub fn run(&mut self, prog: &Program) -> Result<String, String> {
         for item in &prog.items {
             match item {
                 Item::Fn(f) => {
@@ -138,9 +152,8 @@ impl Interp {
             .cloned()
             .ok_or_else(|| "no entry point: define `fn main()` or `دالة رئيسي()`".to_string())?;
         match self.call(&main, vec![]) {
-            Ok(_) => Ok(()),
+            Ok(_) | Err(Flow::Return(_)) => Ok(std::mem::take(&mut self.out)),
             Err(Flow::Error(e)) => Err(e),
-            Err(Flow::Return(_)) => Ok(()),
         }
     }
 
@@ -325,7 +338,8 @@ impl Interp {
                 }
                 if is_print_builtin(callee) {
                     let line: Vec<String> = vals.iter().map(|v| v.to_string()).collect();
-                    println!("{}", line.join(" "));
+                    self.out.push_str(&line.join(" "));
+                    self.out.push('\n');
                     return Ok(Value::Unit);
                 }
                 // Bare tuple-variant construction, e.g. `Some(x)` / `Circle(r)`.
@@ -358,6 +372,18 @@ impl Interp {
                     self.eval_expr(e)
                 } else {
                     Ok(Value::Unit)
+                }
+            }
+            ExprKind::Float(x) => Ok(Value::Float(*x)),
+            ExprKind::Cast { expr, ty } => {
+                let v = self.eval_expr(expr)?;
+                let to_float = matches!(ty.as_str(), "f64" | "float" | "عائم");
+                match v {
+                    Value::Int(n) if to_float => Ok(Value::Float(n as f64)),
+                    Value::Int(n) => Ok(Value::Int(n)),
+                    Value::Float(x) if to_float => Ok(Value::Float(x)),
+                    Value::Float(x) => Ok(Value::Int(x as i64)),
+                    other => Err(Flow::Error(format!("cannot cast `{}`", other))),
                 }
             }
             ExprKind::Block(b) => self.eval_block(b),
@@ -544,38 +570,46 @@ impl Interp {
     fn eval_binary(&self, op: BinOp, l: Value, r: Value) -> EResult<Value> {
         use BinOp::*;
         match op {
-            Add | Sub | Mul | Div | Rem => {
-                let (a, b) = match (l, r) {
-                    (Value::Int(a), Value::Int(b)) => (a, b),
-                    (l, r) => {
-                        return Err(Flow::Error(format!(
-                            "arithmetic on non-ints: {} {:?} {}",
-                            l, op, r
-                        )))
-                    }
-                };
-                let v = match op {
-                    Add => a.checked_add(b),
-                    Sub => a.checked_sub(b),
-                    Mul => a.checked_mul(b),
-                    Div => {
-                        if b == 0 {
-                            return Err(Flow::Error("division by zero".into()));
+            Add | Sub | Mul | Div | Rem => match (l, r) {
+                (Value::Int(a), Value::Int(b)) => {
+                    let v = match op {
+                        Add => a.checked_add(b),
+                        Sub => a.checked_sub(b),
+                        Mul => a.checked_mul(b),
+                        Div => {
+                            if b == 0 {
+                                return Err(Flow::Error("division by zero".into()));
+                            }
+                            Some(a / b)
                         }
-                        Some(a / b)
-                    }
-                    Rem => {
-                        if b == 0 {
-                            return Err(Flow::Error("remainder by zero".into()));
+                        Rem => {
+                            if b == 0 {
+                                return Err(Flow::Error("remainder by zero".into()));
+                            }
+                            Some(a % b)
                         }
-                        Some(a % b)
-                    }
-                    _ => unreachable!(),
-                };
-                // Secure-by-default: overflow is an error, never silent wraparound.
-                v.map(Value::Int)
-                    .ok_or_else(|| Flow::Error("integer overflow".into()))
-            }
+                        _ => unreachable!(),
+                    };
+                    // Secure-by-default: overflow is an error, never silent wraparound.
+                    v.map(Value::Int)
+                        .ok_or_else(|| Flow::Error("integer overflow".into()))
+                }
+                (Value::Float(a), Value::Float(b)) => {
+                    let v = match op {
+                        Add => a + b,
+                        Sub => a - b,
+                        Mul => a * b,
+                        Div => a / b,
+                        Rem => a % b,
+                        _ => unreachable!(),
+                    };
+                    Ok(Value::Float(v))
+                }
+                (l, r) => Err(Flow::Error(format!(
+                    "arithmetic on mismatched/non-numeric operands: {} {:?} {}",
+                    l, op, r
+                ))),
+            },
             Eq | Ne | Lt | Le | Gt | Ge => {
                 let ord = self.compare(&l, &r)?;
                 let b = match op {
@@ -595,6 +629,9 @@ impl Interp {
     fn compare(&self, l: &Value, r: &Value) -> EResult<i32> {
         let c = match (l, r) {
             (Value::Int(a), Value::Int(b)) => a.cmp(b),
+            (Value::Float(a), Value::Float(b)) => {
+                a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal)
+            }
             (Value::Str(a), Value::Str(b)) => a.cmp(b),
             (Value::Bool(a), Value::Bool(b)) => a.cmp(b),
             (l, r) => return Err(Flow::Error(format!("cannot compare {} and {}", l, r))),
