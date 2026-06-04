@@ -20,13 +20,31 @@ representation + Rust comparison.
       match, methods, type inference for locals.
 - [ ] traits, generics, modules, error handling, macros — designed, not yet built.
 
-## ⬜ Not done / open
-- [ ] **Async / concurrency syntax** — deliberately deferred (deep-dive pending).
-- [ ] String interpolation details (`"{x}"`) — designed informally, not formalized.
-- [ ] Closures / lambdas — referenced in Phase 2 examples, need a full spec.
-- [ ] Sized integer types (`i32`/`i64`/`u…`) — MVP uses one `int`; formalize later.
+## ✅ Done — remaining feature specs (docs/design/02-language-features.md)
+- [x] **Numeric type tower** — `i8..i64`/`u8..u64`/`isize`/`usize`/`f32`/`f64`
+      with bilingual names (`صN`/`طN`/`عN`), inference + defaulting (`i64`/`f64`),
+      checked overflow, explicit `as`/`كـ` casts.
+- [x] **String interpolation** — `"{expr}"`, `{{`/`}}` escapes; lexing into
+      literal/expr parts + desugaring to a `Display` builder.
+- [x] **Closures / lambdas** — `|x| ...` syntax, capture/ownership model
+      (borrow by default, `move`/`نقل`), single `Callable` trait (vs Rust's three).
+- [x] **Async / concurrency** — design direction chosen: **structured concurrency
+      (nurseries)** atop async, with rationale vs async-await and Go-style tasks.
+
+## ✅ Resolved (was open)
+- [x] **Async** surface syntax finalized (keywords `async/متزامن`, `await/انتظر`,
+      `nursery/حضانة`, `spawn/أطلق`, `channel/قناة`); its *semantics* are
+      deliberately scoped to a **dedicated future phase**, not Phase 2 (a Phase 1
+      non-goal). So it no longer blocks Phase 2.
+- [x] **String interpolation implemented in the MVP** end-to-end (lexer → parser →
+      type checker → interpreter), bilingual — `examples/interp_en.tn` /
+      `interp_ar.tn`, covered by tests.
+
+## ⬜ Tracked under Phase 10 (implementation, not design)
+- [ ] Numeric tower (f64 + sized ints) — implement in the MVP.
+- [ ] Closures — implement after the type checker supports function types.
+(These are *build* tasks; Phase 2 *design* is complete.)
 
 ## Forward plan
-1. Formalize closures + string interpolation (needed by stdlib).
-2. Design async/concurrency as its own focused phase.
-3. Finalize the numeric type tower (`int` → `i8..i64`, `u8..u64`, `f32`/`f64`).
+Phase 2 (design) is complete. Remaining work is implementation, tracked in
+Phase 10; async semantics is a separate future phase.

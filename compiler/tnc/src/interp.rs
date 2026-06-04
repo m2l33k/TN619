@@ -270,6 +270,16 @@ impl Interp {
         match e {
             Expr::Int(n) => Ok(Value::Int(*n)),
             Expr::Str(s) => Ok(Value::Str(s.clone())),
+            Expr::StrInterp(parts) => {
+                let mut out = String::new();
+                for part in parts {
+                    match part {
+                        StrPart::Lit(s) => out.push_str(s),
+                        StrPart::Expr(e) => out.push_str(&self.eval_expr(e)?.to_string()),
+                    }
+                }
+                Ok(Value::Str(out))
+            }
             Expr::Bool(b) => Ok(Value::Bool(*b)),
             Expr::Ident(name) => {
                 if let Some(v) = self.lookup(name) {

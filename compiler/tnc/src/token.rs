@@ -26,6 +26,9 @@ pub enum TokenKind {
     // Literals
     Int(i64),
     Str(String),
+    /// An interpolated string literal: a sequence of literal text and embedded
+    /// expression source, e.g. `"hi {name}"`. Produced only when `{...}` is present.
+    InterpStr(Vec<StrPiece>),
     Ident(String),
 
     // Operators
@@ -58,6 +61,14 @@ pub enum TokenKind {
     Amp,      // &  (shared reference, as in &self)
 
     Eof,
+}
+
+/// One piece of an interpolated string. `Expr` holds the raw source between
+/// `{` and `}`, re-parsed into an expression by the parser.
+#[derive(Debug, Clone, PartialEq)]
+pub enum StrPiece {
+    Lit(String),
+    Expr(String),
 }
 
 #[derive(Debug, Clone)]

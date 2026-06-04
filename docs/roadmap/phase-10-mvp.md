@@ -19,18 +19,20 @@ interpreter (LLVM/Cranelift swap in later). ~2,470 LOC across 7 modules
 - [x] Pattern matching `match` (literal/binding/wildcard/variant patterns).
 - [x] **Methods & associated functions** (`impl`, `self`/`&self`).
 - [x] **Static type checker** + **compile-time match exhaustiveness**.
+- [x] **String interpolation** — `"{expr}"`, `{{`/`}}` escapes (bilingual);
+      lexer → parser (re-parses each piece) → type checker → interpreter.
 - [x] CLI: `tnc run|check|tokens`.
 - [x] Examples: adult_en/ar, shapes_en/ar, points_en/ar, mixed, bad_type,
-      bad_exhaustive, and **polyglot** (English + Arabic combined in one program —
+      bad_exhaustive, **polyglot** (English + Arabic combined in one program —
       mixed keywords across declarations, within one function, and even within a
-      single expression).
+      single expression), and **interp_en/ar** (string interpolation).
 
 ## ⬜ Not done (next MVP growth — see milestone M1)
 - [ ] References + `&mut self` (needs a real reference value; blocks mutation
       through methods).
 - [ ] Arrays / slices / `Vec`; indexing.
 - [ ] `f64` and the full numeric type tower; sized ints.
-- [ ] Strings beyond literals (concatenation, interpolation, methods).
+- [ ] More string ops (concatenation, methods). _(Interpolation is done.)_
 - [ ] `while let`, `loop` with `break value`, labeled loops.
 - [ ] Closures / lambdas.
 - [ ] Generics, traits, modules, error handling (`?`), macros (designed in Phase 2).

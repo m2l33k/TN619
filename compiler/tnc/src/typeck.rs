@@ -357,6 +357,16 @@ impl Checker {
         match e {
             Expr::Int(_) => Ok(Ty::Int),
             Expr::Str(_) => Ok(Ty::Str),
+            Expr::StrInterp(parts) => {
+                // Each embedded expression must type-check; any displayable value
+                // is allowed. The whole interpolation has type `str`.
+                for part in parts {
+                    if let StrPart::Expr(e) = part {
+                        self.infer(e)?;
+                    }
+                }
+                Ok(Ty::Str)
+            }
             Expr::Bool(_) => Ok(Ty::Bool),
             Expr::Ident(name) => {
                 if let Some(t) = self.lookup(name) {

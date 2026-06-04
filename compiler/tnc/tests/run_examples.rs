@@ -98,6 +98,22 @@ fn mixed() {
 }
 
 #[test]
+fn interp_en() {
+    assert_eq!(
+        run_ok("interp_en.tn"),
+        "Hello, Sara — you are 20\nnext year you will be 21\na literal brace: { and }\n"
+    );
+}
+
+#[test]
+fn interp_ar() {
+    assert_eq!(
+        run_ok("interp_ar.tn"),
+        "مرحبا، سارة — عمرك 20\nفي السنة القادمة ستكون 21\n"
+    );
+}
+
+#[test]
 fn polyglot() {
     assert_eq!(
         run_ok("polyglot.tn"),

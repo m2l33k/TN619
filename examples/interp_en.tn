@@ -1,0 +1,8 @@
+// TN619 — string interpolation (English surface)
+fn main() {
+    let name = "Sara"
+    let age = 20
+    print("Hello, {name} — you are {age}")
+    print("next year you will be {age + 1}")
+    print("a literal brace: {{ and }}")
+}

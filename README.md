@@ -23,6 +23,8 @@ Both of the above produce identical tokens, AST, and output.
   [docs/roadmap/README.md](docs/roadmap/README.md).
 - [docs/ROADMAP.md](docs/ROADMAP.md) — consolidated 24-month build plan.
 - [docs/design/05-memory-model.md](docs/design/05-memory-model.md) — ownership, borrowing, and lifetime inference.
+- [docs/design/02-language-features.md](docs/design/02-language-features.md) — numeric tower, string interpolation, closures, async direction.
+- [docs/design/positioning.md](docs/design/positioning.md) — brand, competitive positioning, target segments.
 
 ## Status: MVP (M0)
 
@@ -57,6 +59,8 @@ cargo run -- run examples/adult_en.tn      # English
 cargo run -- run examples/adult_ar.tn      # Arabic
 cargo run -- run examples/mixed.tn         # mixed
 cargo run -- run examples/polyglot.tn      # English + Arabic combined in ONE program
+cargo run -- run examples/interp_en.tn     # string interpolation (English)
+cargo run -- run examples/interp_ar.tn     # string interpolation (Arabic)
 cargo run -- run examples/shapes_en.tn     # structs + enums + match (English)
 cargo run -- run examples/shapes_ar.tn     # structs + enums + match (Arabic)
 cargo run -- run examples/points_en.tn     # methods + associated functions (English)
@@ -84,10 +88,20 @@ TN619/
 └── examples/               # bilingual sample programs
 ```
 
-## Deferred (documented in source)
+## Deferred (documented in source / roadmap)
 
-- Unicode NFC normalization of identifiers + Trojan-Source/bidi-control rejection
-  (need external crates; the hooks are noted in `lexer.rs`).
-- Static type checker, ownership/borrow checker + lifetime inference.
+- Unicode NFC normalization + XID-based identifiers (need external crates; the
+  hooks are noted in `lexer.rs`). _(Trojan-Source/bidi rejection is implemented.)_
+- Ownership / borrow checker + lifetime inference (designed in
+  `docs/design/05-memory-model.md`).
+- References + `&mut self`, arrays/`Vec`, `f64`, closures, generics, traits,
+  modules, error handling, macros (designed; not yet built).
 - LLVM (release) + Cranelift (debug) backends behind a backend boundary.
 - The full per-stage crate split (Phase 9 monorepo).
+
+## License
+
+Dual-licensed under either of **MIT** ([LICENSE-MIT](LICENSE-MIT)) **or**
+**Apache-2.0** ([LICENSE-APACHE](LICENSE-APACHE)) at your option — the
+Rust-ecosystem convention. Unless you state otherwise, any contribution you
+submit shall be dual-licensed as above, without additional terms.

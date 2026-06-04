@@ -108,6 +108,8 @@ pub enum Stmt {
 pub enum Expr {
     Int(i64),
     Str(String),
+    /// Interpolated string: `"hi {name}"` → [Lit("hi "), Expr(name)].
+    StrInterp(Vec<StrPart>),
     Bool(bool),
     Ident(String),
     Unary {
@@ -184,6 +186,12 @@ pub enum Pattern {
         name: String,
         subs: Vec<Pattern>,
     },
+}
+
+#[derive(Debug, Clone)]
+pub enum StrPart {
+    Lit(String),
+    Expr(Box<Expr>),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]

@@ -5,7 +5,29 @@
 //! (Proper Go-style automatic-semicolon-insertion comes in a later iteration.)
 
 use crate::ast::*;
-use crate::token::{Token, TokenKind};
+use crate::lexer::Lexer;
+use crate::token::{StrPiece, Token, TokenKind};
+
+/// Convert lexer interpolation pieces into AST string parts, re-lexing and
+/// parsing each `{expr}` piece as a standalone expression.
+fn parse_interp_pieces(pieces: &[StrPiece]) -> PResult<Vec<StrPart>> {
+    let mut parts = Vec::new();
+    for p in pieces {
+        match p {
+            StrPiece::Lit(s) => parts.push(StrPart::Lit(s.clone())),
+            StrPiece::Expr(raw) => {
+                let toks = Lexer::new(raw).tokenize()?;
+                let mut sub = Parser::new(toks);
+                let e = sub.parse_expr(0)?;
+                if sub.peek() != &TokenKind::Eof {
+                    return Err(format!("invalid interpolation expression: `{}`", raw));
+                }
+                parts.push(StrPart::Expr(Box::new(e)));
+            }
+        }
+    }
+    Ok(parts)
+}
 
 pub struct Parser {
     toks: Vec<Token>,
@@ -432,6 +454,11 @@ impl Parser {
             TokenKind::Str(s) => {
                 self.advance();
                 Ok(Expr::Str(s))
+            }
+            TokenKind::InterpStr(pieces) => {
+                self.advance();
+                let parts = parse_interp_pieces(&pieces)?;
+                Ok(Expr::StrInterp(parts))
             }
             TokenKind::True => {
                 self.advance();

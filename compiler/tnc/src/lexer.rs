@@ -13,7 +13,7 @@
 //! (CVE-2021-42574) anywhere in source. Deferred (need external crates): Unicode
 //! NFC normalization and XID-based identifiers — see Phase 3 roadmap.
 
-use crate::token::{keyword, Token, TokenKind};
+use crate::token::{keyword, StrPiece, Token, TokenKind};
 
 pub struct Lexer<'a> {
     src: &'a str,
@@ -163,25 +163,80 @@ impl<'a> Lexer<'a> {
         Ok(TokenKind::Int(val))
     }
 
+    /// String literal, with interpolation: `"hi {name}, {a + b}"`. `{{`/`}}` are
+    /// literal braces. Produces a plain `Str` when no interpolation is present,
+    /// else an `InterpStr` of literal/expression pieces.
     fn lex_string(&mut self) -> Result<TokenKind, String> {
         self.bump(); // opening "
-        let mut s = String::new();
+        let mut pieces: Vec<StrPiece> = Vec::new();
+        let mut lit = String::new();
         loop {
             match self.bump() {
                 None => return Err(format!("line {}: unterminated string literal", self.line)),
                 Some('"') => break,
                 Some('\\') => match self.bump() {
-                    Some('n') => s.push('\n'),
-                    Some('t') => s.push('\t'),
-                    Some('"') => s.push('"'),
-                    Some('\\') => s.push('\\'),
-                    Some(o) => s.push(o),
+                    Some('n') => lit.push('\n'),
+                    Some('t') => lit.push('\t'),
+                    Some('"') => lit.push('"'),
+                    Some('\\') => lit.push('\\'),
+                    Some('{') => lit.push('{'),
+                    Some('}') => lit.push('}'),
+                    Some(o) => lit.push(o),
                     None => return Err(format!("line {}: unterminated escape", self.line)),
                 },
-                Some(c) => s.push(c),
+                Some('{') => {
+                    if self.peek() == Some('{') {
+                        self.bump();
+                        lit.push('{'); // escaped literal brace
+                    } else {
+                        if !lit.is_empty() {
+                            pieces.push(StrPiece::Lit(std::mem::take(&mut lit)));
+                        }
+                        // Capture raw expression source up to the matching `}`.
+                        let mut expr = String::new();
+                        let mut depth = 1;
+                        loop {
+                            match self.bump() {
+                                None => {
+                                    return Err(format!(
+                                        "line {}: unterminated interpolation `{{...}}`",
+                                        self.line
+                                    ))
+                                }
+                                Some('{') => {
+                                    depth += 1;
+                                    expr.push('{');
+                                }
+                                Some('}') => {
+                                    depth -= 1;
+                                    if depth == 0 {
+                                        break;
+                                    }
+                                    expr.push('}');
+                                }
+                                Some(c) => expr.push(c),
+                            }
+                        }
+                        pieces.push(StrPiece::Expr(expr));
+                    }
+                }
+                Some('}') => {
+                    if self.peek() == Some('}') {
+                        self.bump();
+                    }
+                    lit.push('}'); // lone or escaped `}` is literal
+                }
+                Some(c) => lit.push(c),
             }
         }
-        Ok(TokenKind::Str(s))
+        if pieces.is_empty() {
+            Ok(TokenKind::Str(lit))
+        } else {
+            if !lit.is_empty() {
+                pieces.push(StrPiece::Lit(lit));
+            }
+            Ok(TokenKind::InterpStr(pieces))
+        }
     }
 
     fn lex_symbol(&mut self) -> Result<TokenKind, String> {

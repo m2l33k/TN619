@@ -15,12 +15,17 @@
       default; no hidden cost; beginner-friendly ≠ dumbed-down.
 - [x] Manifesto (6 tenets) + explicit non-goal: not fixing Rust's async at launch.
 
+- [x] **License chosen & added:** dual **MIT OR Apache-2.0** (`LICENSE-MIT`,
+      `LICENSE-APACHE`) — the Rust-ecosystem convention; Apache adds a patent grant.
+- [x] **Positioning written:** `docs/design/positioning.md` — brand/tagline
+      ("Learn systems programming in your language"), competitive table vs
+      Rust/Go/Swift/Zig/C++, target segments, and honest non-goals.
+
 ## ⬜ Not done / open
-- [ ] Name/brand finalization, logo, domain.
-- [ ] Written positioning vs Go, Swift, Zig (not just Rust) for outreach.
-- [ ] License choice (MIT/Apache-2.0 dual is the likely default).
+- [ ] Logo (wordmark readable LTR + RTL).
+- [ ] Domain registration (`tn619.dev` / `.org`), GitHub org, `tnpkg` registry name.
 
 ## Forward plan
-Vision is essentially frozen; revisit only if the beachhead or core bet changes.
-Next vision-adjacent task is **branding + license** before any public release
-(tie to Phase 8 milestone M17).
+Vision + positioning + license are done. Remaining items are external/branding
+(logo, domain) — tie to a public-release push (Phase 8 milestone M17). Revisit the
+vision only if the beachhead or the core bet changes.
