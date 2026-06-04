@@ -21,7 +21,9 @@ interpreter (LLVM/Cranelift swap in later). ~2,470 LOC across 7 modules
 - [x] **Static type checker** + **compile-time match exhaustiveness**.
 - [x] CLI: `tnc run|check|tokens`.
 - [x] Examples: adult_en/ar, shapes_en/ar, points_en/ar, mixed, bad_type,
-      bad_exhaustive.
+      bad_exhaustive, and **polyglot** (English + Arabic combined in one program —
+      mixed keywords across declarations, within one function, and even within a
+      single expression).
 
 ## ⬜ Not done (next MVP growth — see milestone M1)
 - [ ] References + `&mut self` (needs a real reference value; blocks mutation

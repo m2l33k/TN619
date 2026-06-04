@@ -1,0 +1,42 @@
+// TN619 — English and Arabic COMBINED in a single program.
+// English keywords/identifiers and Arabic keywords/identifiers are mixed freely
+// across declarations, inside the same function, and even the same expression.
+// Everything compiles to ONE identical AST.
+
+// English struct declaration...
+struct Account {
+    balance: int,
+    owner: str,
+}
+
+// ...with an Arabic `impl` (تطبيق) block of methods on it.
+// Note: `&الذات` is `&self`; the parameter type `عدد` is `int`.
+تطبيق Account {
+    دالة deposit(&الذات, amount: عدد) -> Account {
+        Account { balance: الذات.balance + amount, owner: الذات.owner }
+    }
+}
+
+// An Arabic enum (تعداد) with English variant names...
+تعداد Status { Active, Closed }
+
+// ...consumed by an English function using English `match`.
+fn describe(s: Status) -> str {
+    match s {
+        Active => "active",
+        Closed => "closed",
+    }
+}
+
+// Entry point in Arabic (دالة رئيسي == fn main), mixing both languages inside:
+دالة رئيسي() {
+    دع acc = Account { balance: ١٠٠, owner: "Sara" }   // Arabic `let`, Arabic digits
+    let acc2 = acc.deposit(50)                          // English `let`, ASCII digits
+
+    اطبع("balance:", acc2.balance)                      // Arabic `print`
+    print("status:", describe(Active))                  // English `print`
+
+    // Arabic and English keywords in the SAME control-flow expression:
+    دع label = if acc2.balance > ٥٠ { "rich" } وإلا { "poor" }
+    print("label:", label)
+}

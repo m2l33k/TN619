@@ -56,6 +56,7 @@ cargo build
 cargo run -- run examples/adult_en.tn      # English
 cargo run -- run examples/adult_ar.tn      # Arabic
 cargo run -- run examples/mixed.tn         # mixed
+cargo run -- run examples/polyglot.tn      # English + Arabic combined in ONE program
 cargo run -- run examples/shapes_en.tn     # structs + enums + match (English)
 cargo run -- run examples/shapes_ar.tn     # structs + enums + match (Arabic)
 cargo run -- run examples/points_en.tn     # methods + associated functions (English)
