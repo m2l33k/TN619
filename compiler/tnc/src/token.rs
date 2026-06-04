@@ -25,6 +25,7 @@ pub enum TokenKind {
 
     // Literals
     Int(i64),
+    Float(f64),
     Str(String),
     /// An interpolated string literal: a sequence of literal text and embedded
     /// expression source, e.g. `"hi {name}"`. Produced only when `{...}` is present.

@@ -104,9 +104,22 @@ pub enum Stmt {
     Expr(Expr),
 }
 
+/// An expression plus its source line, so diagnostics can point at it.
 #[derive(Debug, Clone)]
-pub enum Expr {
+pub struct Expr {
+    pub kind: ExprKind,
+    pub line: usize,
+}
+
+#[derive(Debug, Clone)]
+pub enum ExprKind {
     Int(i64),
+    Float(f64),
+    /// `expr as Type` numeric cast.
+    Cast {
+        expr: Box<Expr>,
+        ty: String,
+    },
     Str(String),
     /// Interpolated string: `"hi {name}"` → [Lit("hi "), Expr(name)].
     StrInterp(Vec<StrPart>),

@@ -266,11 +266,21 @@ impl Interp {
         }
     }
 
+    /// Evaluate `e`, tagging any runtime error with its source line.
     fn eval_expr(&mut self, e: &Expr) -> EResult<Value> {
-        match e {
-            Expr::Int(n) => Ok(Value::Int(*n)),
-            Expr::Str(s) => Ok(Value::Str(s.clone())),
-            Expr::StrInterp(parts) => {
+        self.eval_expr_kind(e).map_err(|f| match f {
+            Flow::Error(m) if !m.starts_with("line ") => {
+                Flow::Error(format!("line {}: {}", e.line, m))
+            }
+            other => other,
+        })
+    }
+
+    fn eval_expr_kind(&mut self, e: &Expr) -> EResult<Value> {
+        match &e.kind {
+            ExprKind::Int(n) => Ok(Value::Int(*n)),
+            ExprKind::Str(s) => Ok(Value::Str(s.clone())),
+            ExprKind::StrInterp(parts) => {
                 let mut out = String::new();
                 for part in parts {
                     match part {
@@ -280,8 +290,8 @@ impl Interp {
                 }
                 Ok(Value::Str(out))
             }
-            Expr::Bool(b) => Ok(Value::Bool(*b)),
-            Expr::Ident(name) => {
+            ExprKind::Bool(b) => Ok(Value::Bool(*b)),
+            ExprKind::Ident(name) => {
                 if let Some(v) = self.lookup(name) {
                     Ok(v)
                 } else if let Some((enum_name, 0)) = self.variants.get(name).cloned() {
@@ -295,7 +305,7 @@ impl Interp {
                     Err(Flow::Error(format!("cannot find `{}` in scope", name)))
                 }
             }
-            Expr::Unary { op, rhs } => {
+            ExprKind::Unary { op, rhs } => {
                 let v = self.eval_expr(rhs)?;
                 match (op, v) {
                     (UnOp::Neg, Value::Int(n)) => Ok(Value::Int(-n)),
@@ -303,12 +313,12 @@ impl Interp {
                     (op, v) => Err(Flow::Error(format!("invalid unary {:?} on {}", op, v))),
                 }
             }
-            Expr::Binary { op, lhs, rhs } => {
+            ExprKind::Binary { op, lhs, rhs } => {
                 let l = self.eval_expr(lhs)?;
                 let r = self.eval_expr(rhs)?;
                 self.eval_binary(*op, l, r)
             }
-            Expr::Call { callee, args } => {
+            ExprKind::Call { callee, args } => {
                 let mut vals = Vec::new();
                 for a in args {
                     vals.push(self.eval_expr(a)?);
@@ -341,7 +351,7 @@ impl Interp {
                     .ok_or_else(|| Flow::Error(format!("cannot find function `{}`", callee)))?;
                 self.call(&f, vals)
             }
-            Expr::If { cond, then_b, els } => {
+            ExprKind::If { cond, then_b, els } => {
                 if self.truthy(cond)? {
                     self.eval_block(then_b)
                 } else if let Some(e) = els {
@@ -350,8 +360,8 @@ impl Interp {
                     Ok(Value::Unit)
                 }
             }
-            Expr::Block(b) => self.eval_block(b),
-            Expr::StructLit { name, fields } => {
+            ExprKind::Block(b) => self.eval_block(b),
+            ExprKind::StructLit { name, fields } => {
                 let decl = self
                     .structs
                     .get(name)
@@ -384,7 +394,7 @@ impl Interp {
                     fields: out,
                 })
             }
-            Expr::Field { base, field } => {
+            ExprKind::Field { base, field } => {
                 let b = self.eval_expr(base)?;
                 match b {
                     Value::Struct { name, fields } => fields
@@ -400,7 +410,7 @@ impl Interp {
                     ))),
                 }
             }
-            Expr::Path { ty, member, args } => {
+            ExprKind::Path { ty, member, args } => {
                 // Enum construction takes priority: `Shape::Circle(..)` / `Color::Red`.
                 if let Some((en, _)) = self.variants.get(member).cloned() {
                     if &en == ty {
@@ -431,7 +441,7 @@ impl Interp {
                 }
                 Err(Flow::Error(format!("no `{}::{}`", ty, member)))
             }
-            Expr::MethodCall {
+            ExprKind::MethodCall {
                 receiver,
                 method,
                 args,
@@ -458,7 +468,7 @@ impl Interp {
                 }
                 self.call_with_self(&m.func, Some(recv), vals)
             }
-            Expr::Match { scrutinee, arms } => {
+            ExprKind::Match { scrutinee, arms } => {
                 let val = self.eval_expr(scrutinee)?;
                 for arm in arms {
                     self.scopes.push(Scope::new());

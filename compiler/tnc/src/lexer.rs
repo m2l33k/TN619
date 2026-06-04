@@ -141,26 +141,44 @@ impl<'a> Lexer<'a> {
         keyword(word).unwrap_or_else(|| TokenKind::Ident(word.to_string()))
     }
 
-    /// Integer literal. Accumulates the value directly (no temporary string),
-    /// folding ASCII, Arabic-Indic, and Persian digits to one `i64`.
+    /// Numeric literal: integer, or float if a `.` is followed by a digit.
+    /// `1..6` stays two integers + range (the `.` is only fractional when the
+    /// next char is a digit). Folds ASCII / Arabic-Indic / Persian digits.
     fn lex_number(&mut self) -> Result<TokenKind, String> {
-        let mut val: i64 = 0;
+        let start = self.pos;
         let start_line = self.line;
-        while let Some(c) = self.peek() {
-            match digit_value(c) {
-                Some(d) => {
-                    val = val
-                        .checked_mul(10)
-                        .and_then(|v| v.checked_add(d as i64))
-                        .ok_or_else(|| {
-                            format!("line {}: integer literal is too large", start_line)
-                        })?;
-                    self.bump();
-                }
-                None => break,
+        let mut is_float = false;
+        while self.peek().map_or(false, is_digit) {
+            self.bump();
+        }
+        // Fractional part only if `.` is directly followed by a digit (so `1..6`
+        // and `x.field` are not floats).
+        if self.peek() == Some('.') && self.peek2().map_or(false, is_digit) {
+            is_float = true;
+            self.bump(); // '.'
+            while self.peek().map_or(false, is_digit) {
+                self.bump();
             }
         }
-        Ok(TokenKind::Int(val))
+        // Fold any non-ASCII digits to ASCII for parsing; keep '.'.
+        let folded: String = self.src[start..self.pos]
+            .chars()
+            .map(|c| match digit_value(c) {
+                Some(d) => std::char::from_digit(d, 10).unwrap(),
+                None => c,
+            })
+            .collect();
+        if is_float {
+            folded
+                .parse::<f64>()
+                .map(TokenKind::Float)
+                .map_err(|_| format!("line {}: invalid float literal `{}`", start_line, folded))
+        } else {
+            folded
+                .parse::<i64>()
+                .map(TokenKind::Int)
+                .map_err(|_| format!("line {}: integer literal is too large", start_line))
+        }
     }
 
     /// String literal, with interpolation: `"hi {name}, {a + b}"`. `{{`/`}}` are

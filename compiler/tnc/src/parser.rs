@@ -396,45 +396,77 @@ impl Parser {
             }
             self.advance();
             let rhs = self.parse_expr(r_bp)?;
-            lhs = Expr::Binary {
-                op,
-                lhs: Box::new(lhs),
-                rhs: Box::new(rhs),
+            let line = lhs.line;
+            lhs = Expr {
+                kind: ExprKind::Binary {
+                    op,
+                    lhs: Box::new(lhs),
+                    rhs: Box::new(rhs),
+                },
+                line,
             };
         }
         Ok(lhs)
     }
 
-    /// Wraps a prefix expression with trailing `.field` accesses and
-    /// `.method(args)` calls.
+    /// Parses a prefix expression (attaching its line), then wraps trailing
+    /// `.field` accesses and `.method(args)` calls.
     fn parse_postfix(&mut self) -> PResult<Expr> {
-        let mut e = self.parse_prefix()?;
-        while self.peek() == &TokenKind::Dot {
-            self.advance();
-            let name = self.parse_ident()?;
-            if self.peek() == &TokenKind::LParen {
-                let args = self.parse_call_args()?;
-                e = Expr::MethodCall {
-                    receiver: Box::new(e),
-                    method: name,
-                    args,
-                };
-            } else {
-                e = Expr::Field {
-                    base: Box::new(e),
-                    field: name,
-                };
+        let line = self.line();
+        let mut e = Expr {
+            kind: self.parse_prefix()?,
+            line,
+        };
+        loop {
+            let l = e.line;
+            match self.peek() {
+                TokenKind::Dot => {
+                    self.advance();
+                    let name = self.parse_ident()?;
+                    if self.peek() == &TokenKind::LParen {
+                        let args = self.parse_call_args()?;
+                        e = Expr {
+                            kind: ExprKind::MethodCall {
+                                receiver: Box::new(e),
+                                method: name,
+                                args,
+                            },
+                            line: l,
+                        };
+                    } else {
+                        e = Expr {
+                            kind: ExprKind::Field {
+                                base: Box::new(e),
+                                field: name,
+                            },
+                            line: l,
+                        };
+                    }
+                }
+                TokenKind::As => {
+                    self.advance();
+                    let ty = self.parse_type()?;
+                    e = Expr {
+                        kind: ExprKind::Cast {
+                            expr: Box::new(e),
+                            ty,
+                        },
+                        line: l,
+                    };
+                }
+                _ => break,
             }
         }
         Ok(e)
     }
 
-    fn parse_prefix(&mut self) -> PResult<Expr> {
+    /// Returns the bare `ExprKind`; `parse_postfix` attaches the line.
+    fn parse_prefix(&mut self) -> PResult<ExprKind> {
         match self.peek().clone() {
             TokenKind::Minus => {
                 self.advance();
                 let rhs = self.parse_expr(7)?;
-                Ok(Expr::Unary {
+                Ok(ExprKind::Unary {
                     op: UnOp::Neg,
                     rhs: Box::new(rhs),
                 })
@@ -442,39 +474,43 @@ impl Parser {
             TokenKind::Bang => {
                 self.advance();
                 let rhs = self.parse_expr(7)?;
-                Ok(Expr::Unary {
+                Ok(ExprKind::Unary {
                     op: UnOp::Not,
                     rhs: Box::new(rhs),
                 })
             }
             TokenKind::Int(n) => {
                 self.advance();
-                Ok(Expr::Int(n))
+                Ok(ExprKind::Int(n))
+            }
+            TokenKind::Float(x) => {
+                self.advance();
+                Ok(ExprKind::Float(x))
             }
             TokenKind::Str(s) => {
                 self.advance();
-                Ok(Expr::Str(s))
+                Ok(ExprKind::Str(s))
             }
             TokenKind::InterpStr(pieces) => {
                 self.advance();
                 let parts = parse_interp_pieces(&pieces)?;
-                Ok(Expr::StrInterp(parts))
+                Ok(ExprKind::StrInterp(parts))
             }
             TokenKind::True => {
                 self.advance();
-                Ok(Expr::Bool(true))
+                Ok(ExprKind::Bool(true))
             }
             TokenKind::False => {
                 self.advance();
-                Ok(Expr::Bool(false))
+                Ok(ExprKind::Bool(false))
             }
             TokenKind::LParen => {
                 self.advance();
                 let e = self.with_struct(|p| p.parse_expr(0))?;
                 self.expect(TokenKind::RParen)?;
-                Ok(e)
+                Ok(e.kind)
             }
-            TokenKind::If => self.parse_if(),
+            TokenKind::If => Ok(self.parse_if()?.kind),
             TokenKind::Match => self.parse_match(),
             TokenKind::Ident(name) => {
                 self.advance();
@@ -488,7 +524,7 @@ impl Parser {
                     } else {
                         Vec::new()
                     };
-                    Ok(Expr::Path {
+                    Ok(ExprKind::Path {
                         ty: name,
                         member,
                         args,
@@ -496,11 +532,11 @@ impl Parser {
                 } else if self.peek() == &TokenKind::LParen {
                     // Function call OR bare tuple-variant construction (resolved at runtime).
                     let args = self.parse_call_args()?;
-                    Ok(Expr::Call { callee: name, args })
+                    Ok(ExprKind::Call { callee: name, args })
                 } else if self.allow_struct_lit && self.peek() == &TokenKind::LBrace {
                     self.parse_struct_lit(name)
                 } else {
-                    Ok(Expr::Ident(name))
+                    Ok(ExprKind::Ident(name))
                 }
             }
             other => Err(format!(
@@ -512,6 +548,7 @@ impl Parser {
     }
 
     fn parse_if(&mut self) -> PResult<Expr> {
+        let line = self.line();
         self.expect(TokenKind::If)?;
         let cond = self.no_struct(|p| p.parse_expr(0))?;
         let then_b = self.parse_block()?;
@@ -519,15 +556,22 @@ impl Parser {
             if self.peek() == &TokenKind::If {
                 Some(Box::new(self.parse_if()?))
             } else {
-                Some(Box::new(Expr::Block(self.parse_block()?)))
+                let bline = self.line();
+                Some(Box::new(Expr {
+                    kind: ExprKind::Block(self.parse_block()?),
+                    line: bline,
+                }))
             }
         } else {
             None
         };
-        Ok(Expr::If {
-            cond: Box::new(cond),
-            then_b,
-            els,
+        Ok(Expr {
+            kind: ExprKind::If {
+                cond: Box::new(cond),
+                then_b,
+                els,
+            },
+            line,
         })
     }
 
@@ -550,7 +594,7 @@ impl Parser {
         Ok(args)
     }
 
-    fn parse_struct_lit(&mut self, name: String) -> PResult<Expr> {
+    fn parse_struct_lit(&mut self, name: String) -> PResult<ExprKind> {
         self.expect(TokenKind::LBrace)?;
         let mut fields = Vec::new();
         self.with_struct(|p| {
@@ -560,7 +604,10 @@ impl Parser {
                     p.parse_expr(0)?
                 } else {
                     // Field shorthand: `User { name }` == `User { name: name }`.
-                    Expr::Ident(fname.clone())
+                    Expr {
+                        kind: ExprKind::Ident(fname.clone()),
+                        line: p.line(),
+                    }
                 };
                 fields.push((fname, value));
                 if !p.eat(&TokenKind::Comma) {
@@ -570,10 +617,10 @@ impl Parser {
             Ok(())
         })?;
         self.expect(TokenKind::RBrace)?;
-        Ok(Expr::StructLit { name, fields })
+        Ok(ExprKind::StructLit { name, fields })
     }
 
-    fn parse_match(&mut self) -> PResult<Expr> {
+    fn parse_match(&mut self) -> PResult<ExprKind> {
         self.expect(TokenKind::Match)?;
         let scrutinee = self.no_struct(|p| p.parse_expr(0))?;
         self.expect(TokenKind::LBrace)?;
@@ -586,7 +633,7 @@ impl Parser {
             self.eat(&TokenKind::Comma); // optional trailing comma
         }
         self.expect(TokenKind::RBrace)?;
-        Ok(Expr::Match {
+        Ok(ExprKind::Match {
             scrutinee: Box::new(scrutinee),
             arms,
         })

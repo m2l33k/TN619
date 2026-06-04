@@ -36,7 +36,9 @@ interpreter (LLVM/Cranelift swap in later). ~2,470 LOC across 7 modules
 - [ ] `while let`, `loop` with `break value`, labeled loops.
 - [ ] Closures / lambdas.
 - [ ] Generics, traits, modules, error handling (`?`), macros (designed in Phase 2).
-- [ ] Spans on AST nodes → precise, tiered, bilingual diagnostics.
+- [x] **Line numbers in diagnostics** — every type error and runtime error
+      reports `line N: …` (expressions carry their source line). _(Column
+      numbers + caret rendering + tiered/bilingual phrasing still to come.)_
 
 ## Forward plan (mapped to Phase 8, Q1)
 1. **M1:** references + `&mut self`, arrays/`Vec`, `f64`, string ops, `while let`.

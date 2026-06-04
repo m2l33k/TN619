@@ -15,6 +15,7 @@ use std::collections::{HashMap, HashSet};
 #[derive(Debug, Clone, PartialEq)]
 pub enum Ty {
     Int,
+    Float,
     Bool,
     Str,
     Unit,
@@ -26,6 +27,7 @@ impl std::fmt::Display for Ty {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Ty::Int => write!(f, "int"),
+            Ty::Float => write!(f, "f64"),
             Ty::Bool => write!(f, "bool"),
             Ty::Str => write!(f, "str"),
             Ty::Unit => write!(f, "unit"),
@@ -84,6 +86,7 @@ impl Checker {
     fn resolve(&self, name: &str) -> Result<Ty, String> {
         Ok(match name {
             "int" | "عدد" => Ty::Int,
+            "f64" | "float" | "عائم" => Ty::Float,
             "bool" | "منطقي" => Ty::Bool,
             "str" | "نص" => Ty::Str,
             "unit" => Ty::Unit,
@@ -353,11 +356,17 @@ impl Checker {
         }
     }
 
+    /// Infer the type of `e`, tagging any error with its source line (the
+    /// innermost expression's line wins, since nested calls tag first).
     fn infer(&mut self, e: &Expr) -> Result<Ty, String> {
-        match e {
-            Expr::Int(_) => Ok(Ty::Int),
-            Expr::Str(_) => Ok(Ty::Str),
-            Expr::StrInterp(parts) => {
+        self.infer_kind(e).map_err(|m| with_line(e.line, m))
+    }
+
+    fn infer_kind(&mut self, e: &Expr) -> Result<Ty, String> {
+        match &e.kind {
+            ExprKind::Int(_) => Ok(Ty::Int),
+            ExprKind::Str(_) => Ok(Ty::Str),
+            ExprKind::StrInterp(parts) => {
                 // Each embedded expression must type-check; any displayable value
                 // is allowed. The whole interpolation has type `str`.
                 for part in parts {
@@ -367,8 +376,8 @@ impl Checker {
                 }
                 Ok(Ty::Str)
             }
-            Expr::Bool(_) => Ok(Ty::Bool),
-            Expr::Ident(name) => {
+            ExprKind::Bool(_) => Ok(Ty::Bool),
+            ExprKind::Ident(name) => {
                 if let Some(t) = self.lookup(name) {
                     Ok(t)
                 } else if let Some(en) = self.unit_variant_enum(name) {
@@ -377,38 +386,54 @@ impl Checker {
                     Err(format!("cannot find `{}` in scope", name))
                 }
             }
-            Expr::Unary { op, rhs } => match op {
+            ExprKind::Float(_) => Ok(Ty::Float),
+            ExprKind::Cast { expr, ty } => {
+                let from = self.infer(expr)?;
+                let to = self.resolve(ty)?;
+                let numeric = |t: &Ty| *t == Ty::Int || *t == Ty::Float;
+                if numeric(&from) && numeric(&to) {
+                    Ok(to)
+                } else {
+                    Err(format!("cannot cast `{}` to `{}` (numeric casts only)", from, to))
+                }
+            }
+            ExprKind::Unary { op, rhs } => match op {
                 UnOp::Neg => {
-                    self.expect(rhs, &Ty::Int, "negation")?;
-                    Ok(Ty::Int)
+                    let t = self.infer(rhs)?;
+                    if t != Ty::Int && t != Ty::Float {
+                        return Err(format!("negation requires a number, got `{}`", t));
+                    }
+                    Ok(t)
                 }
                 UnOp::Not => {
                     self.expect(rhs, &Ty::Bool, "logical not")?;
                     Ok(Ty::Bool)
                 }
             },
-            Expr::Binary { op, lhs, rhs } => {
+            ExprKind::Binary { op, lhs, rhs } => {
                 let lt = self.infer(lhs)?;
                 let rt = self.infer(rhs)?;
                 use BinOp::*;
                 match op {
                     Add | Sub | Mul | Div | Rem => {
-                        if lt != Ty::Int || rt != Ty::Int {
-                            return Err(format!(
-                                "arithmetic requires int, got `{}` and `{}`",
+                        if lt == rt && (lt == Ty::Int || lt == Ty::Float) {
+                            Ok(lt)
+                        } else {
+                            Err(format!(
+                                "arithmetic requires two ints or two floats, got `{}` and `{}`",
                                 lt, rt
-                            ));
+                            ))
                         }
-                        Ok(Ty::Int)
                     }
                     Lt | Le | Gt | Ge => {
-                        if !(lt == rt && (lt == Ty::Int || lt == Ty::Str)) {
+                        if lt == rt && (lt == Ty::Int || lt == Ty::Float || lt == Ty::Str) {
+                            Ok(Ty::Bool)
+                        } else {
                             return Err(format!(
-                                "ordering requires two ints or two strs, got `{}` and `{}`",
+                                "ordering requires two numbers or two strs, got `{}` and `{}`",
                                 lt, rt
                             ));
                         }
-                        Ok(Ty::Bool)
                     }
                     Eq | Ne => {
                         if lt != rt {
@@ -418,7 +443,7 @@ impl Checker {
                     }
                 }
             }
-            Expr::Call { callee, args } => {
+            ExprKind::Call { callee, args } => {
                 if is_print_builtin(callee) {
                     for a in args {
                         self.infer(a)?;
@@ -452,7 +477,7 @@ impl Checker {
                 }
                 Ok(sig_ret)
             }
-            Expr::If { cond, then_b, els } => {
+            ExprKind::If { cond, then_b, els } => {
                 self.expect(cond, &Ty::Bool, "if condition")?;
                 let then_ty = self.check_block(then_b)?;
                 match els {
@@ -470,8 +495,8 @@ impl Checker {
                     None => Ok(Ty::Unit),
                 }
             }
-            Expr::Block(b) => self.check_block(b),
-            Expr::StructLit { name, fields } => {
+            ExprKind::Block(b) => self.check_block(b),
+            ExprKind::StructLit { name, fields } => {
                 let decl = self
                     .structs
                     .get(name)
@@ -495,7 +520,7 @@ impl Checker {
                 }
                 Ok(Ty::Struct(name.clone()))
             }
-            Expr::Field { base, field } => {
+            ExprKind::Field { base, field } => {
                 let bt = self.infer(base)?;
                 match bt {
                     Ty::Struct(s) => self
@@ -509,7 +534,7 @@ impl Checker {
                     other => Err(format!("cannot access field `{}` on `{}`", field, other)),
                 }
             }
-            Expr::Path { ty, member, args } => {
+            ExprKind::Path { ty, member, args } => {
                 // Enum construction: `Shape::Circle(..)` / `Color::Red`.
                 if self.enum_names.contains(ty)
                     && self.enums.get(ty).unwrap().iter().any(|(v, _)| v == member)
@@ -529,7 +554,7 @@ impl Checker {
                 }
                 Err(format!("no `{}::{}`", ty, member))
             }
-            Expr::MethodCall {
+            ExprKind::MethodCall {
                 receiver,
                 method,
                 args,
@@ -551,7 +576,7 @@ impl Checker {
                 self.check_args(args, &params, &format!("method `{}`", method))?;
                 Ok(ret)
             }
-            Expr::Match { scrutinee, arms } => self.infer_match(scrutinee, arms),
+            ExprKind::Match { scrutinee, arms } => self.infer_match(scrutinee, arms),
         }
     }
 
@@ -773,6 +798,7 @@ impl Checker {
     fn expect(&mut self, e: &Expr, want: &Ty, ctx: &str) -> Result<(), String> {
         let got = self.infer(e)?;
         self.expect_ty(&got, want, ctx)
+            .map_err(|m| with_line(e.line, m))
     }
 
     fn expect_ty(&self, got: &Ty, want: &Ty, ctx: &str) -> Result<(), String> {
@@ -795,5 +821,14 @@ impl Checker {
         } else {
             None
         }
+    }
+}
+
+/// Prefix a diagnostic with its source line, unless it already carries one.
+fn with_line(line: usize, msg: String) -> String {
+    if msg.starts_with("line ") {
+        msg
+    } else {
+        format!("line {}: {}", line, msg)
     }
 }
