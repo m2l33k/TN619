@@ -1,0 +1,8 @@
+// TN619 — mixed Arabic keywords + English identifiers in one file.
+// Demonstrates that the language surface is independent of identifier language.
+دالة main() {
+    دع age = ٢٠
+    if age > 18 {
+        print("mixed works")
+    }
+}

@@ -1,0 +1,14 @@
+// TN619 — should be REJECTED: the match does not cover `Blue`,
+// and there is no `_` arm. Compile-time exhaustiveness checking catches it.
+enum Color { Red, Green, Blue }
+
+fn name(c: Color) -> str {
+    match c {
+        Red   => "red",
+        Green => "green",
+    }
+}
+
+fn main() {
+    print(name(Blue))
+}

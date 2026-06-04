@@ -1,0 +1,7 @@
+# TN619 monorepo — Cargo workspace root.
+# The bootstrap compiler lives under compiler/tnc. As we grow (Phase 9), each
+# pipeline stage becomes its own crate (tn_lexer, tn_parser, ...). For the MVP
+# it is a single crate with internal modules — fastest path to running code.
+[workspace]
+members = ["compiler/tnc"]
+resolver = "2"

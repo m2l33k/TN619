@@ -1,0 +1,8 @@
+// TN619 — should be REJECTED by the type checker:
+// the `if` condition is an int, but conditions must be bool (no truthiness).
+fn main() {
+    let x = 5
+    if x {
+        print("this should never compile")
+    }
+}

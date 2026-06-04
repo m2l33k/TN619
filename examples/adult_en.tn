@@ -1,0 +1,26 @@
+// TN619 — English surface syntax
+fn main() {
+    let age = 20
+
+    if age > 18 {
+        print("Adult")
+    } else {
+        print("Minor")
+    }
+
+    var sum = 0
+    for i in 1..6 {
+        sum = sum + i
+    }
+    print("sum 1..5 =", sum)
+
+    print("factorial(5) =", factorial(5))
+}
+
+fn factorial(n: int) -> int {
+    if n <= 1 {
+        1
+    } else {
+        n * factorial(n - 1)
+    }
+}

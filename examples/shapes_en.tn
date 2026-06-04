@@ -1,0 +1,36 @@
+// TN619 — structs, enums, and pattern matching (English surface)
+struct Point { x: int, y: int }
+
+enum Shape {
+    Circle(int),
+    Rectangle(int, int),
+    Dot,
+}
+
+fn area(s: Shape) -> int {
+    match s {
+        Circle(r)       => r * r * 3,
+        Rectangle(w, h) => w * h,
+        Dot             => 0,
+    }
+}
+
+fn classify(x: int) -> str {
+    match x {
+        0 => "zero",
+        1 => "one",
+        _ => "many",
+    }
+}
+
+fn main() {
+    let p = Point { x: 3, y: 4 }
+    print("point:", p.x, p.y)
+
+    print("area circle:", area(Circle(5)))
+    print("area rect:", area(Rectangle(3, 4)))
+    print("area dot:", area(Dot))
+
+    print("classify 0:", classify(0))
+    print("classify 7:", classify(7))
+}

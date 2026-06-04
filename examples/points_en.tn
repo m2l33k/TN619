@@ -1,0 +1,25 @@
+// TN619 — methods and associated functions (English surface)
+struct Point { x: int, y: int }
+
+impl Point {
+    // associated function (no self) — called as Point::new(..)
+    fn new(x: int, y: int) -> Point {
+        Point { x: x, y: y }
+    }
+    // method (&self) — called as p.sum()
+    fn sum(&self) -> int {
+        self.x + self.y
+    }
+    // method returning a new value, and calling another method on self
+    fn shifted(&self, dx: int) -> Point {
+        Point { x: self.x + dx, y: self.y }
+    }
+}
+
+fn main() {
+    let p = Point::new(3, 4)
+    print("p.sum:", p.sum())
+
+    let q = p.shifted(10)
+    print("q.x:", q.x, "q.sum:", q.sum())
+}

@@ -1,0 +1,13 @@
+[package]
+name = "tnc"
+version = "0.1.0"
+edition = "2021"
+description = "TN619 bootstrap compiler (MVP: bilingual lexer + parser + tree-walking interpreter)"
+
+# Deliberately ZERO dependencies for the MVP so `cargo build` always works offline.
+# Unicode NFC normalization + LLVM/Cranelift codegen arrive in later iterations.
+[dependencies]
+
+[[bin]]
+name = "tnc"
+path = "src/main.rs"
