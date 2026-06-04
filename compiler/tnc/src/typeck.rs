@@ -99,12 +99,16 @@ impl Checker {
         for item in &prog.items {
             match item {
                 Item::Struct(s) => {
-                    if !self.struct_names.insert(s.name.clone()) || self.enum_names.contains(&s.name) {
+                    if !self.struct_names.insert(s.name.clone())
+                        || self.enum_names.contains(&s.name)
+                    {
                         return Err(format!("type `{}` is declared more than once", s.name));
                     }
                 }
                 Item::Enum(e) => {
-                    if !self.enum_names.insert(e.name.clone()) || self.struct_names.contains(&e.name) {
+                    if !self.enum_names.insert(e.name.clone())
+                        || self.struct_names.contains(&e.name)
+                    {
                         return Err(format!("type `{}` is declared more than once", e.name));
                     }
                 }
@@ -168,7 +172,11 @@ impl Checker {
                         };
                         self.methods.insert(
                             (b.type_name.clone(), m.func.name.clone()),
-                            MethodSig { self_kind: m.self_kind, params, ret },
+                            MethodSig {
+                                self_kind: m.self_kind,
+                                params,
+                                ret,
+                            },
                         );
                     }
                 }
@@ -192,15 +200,24 @@ impl Checker {
     }
 
     fn check_method(&mut self, self_ty: &Ty, m: &MethodDecl) -> Result<(), String> {
-        let sig = self.methods.get(&(self_ty.to_string(), m.func.name.clone())).unwrap();
+        let sig = self
+            .methods
+            .get(&(self_ty.to_string(), m.func.name.clone()))
+            .unwrap();
         self.cur_ret = sig.ret.clone();
         let param_tys = sig.params.clone();
 
         self.scopes.push(HashMap::new());
         if m.self_kind != SelfKind::None {
             // `self` is visible under both spellings inside the body.
-            self.scopes.last_mut().unwrap().insert("self".into(), self_ty.clone());
-            self.scopes.last_mut().unwrap().insert("الذات".into(), self_ty.clone());
+            self.scopes
+                .last_mut()
+                .unwrap()
+                .insert("self".into(), self_ty.clone());
+            self.scopes
+                .last_mut()
+                .unwrap()
+                .insert("الذات".into(), self_ty.clone());
         }
         for (p, t) in m.func.params.iter().zip(param_tys) {
             self.scopes.last_mut().unwrap().insert(p.name.clone(), t);
@@ -221,8 +238,12 @@ impl Checker {
     fn check_fn(&mut self, f: &FnDecl) -> Result<(), String> {
         let sig = self.funcs.get(&f.name).unwrap();
         self.cur_ret = sig.ret.clone();
-        let params: Vec<(String, Ty)> =
-            f.params.iter().zip(sig.params.clone()).map(|(p, t)| (p.name.clone(), t)).collect();
+        let params: Vec<(String, Ty)> = f
+            .params
+            .iter()
+            .zip(sig.params.clone())
+            .map(|(p, t)| (p.name.clone(), t))
+            .collect();
 
         self.scopes.push(HashMap::new());
         for (name, ty) in params {
@@ -261,7 +282,9 @@ impl Checker {
 
     fn check_stmt(&mut self, s: &Stmt) -> Result<Ty, String> {
         match s {
-            Stmt::Let { name, ty_ann, init, .. } => {
+            Stmt::Let {
+                name, ty_ann, init, ..
+            } => {
                 let init_ty = self.infer(init)?;
                 let ty = match ty_ann {
                     Some(ann) => {
@@ -297,7 +320,12 @@ impl Checker {
                 self.check_block(body)?;
                 Ok(Ty::Unit)
             }
-            Stmt::For { var, start, end, body } => {
+            Stmt::For {
+                var,
+                start,
+                end,
+                body,
+            } => {
                 self.expect(start, &Ty::Int, "for range start")?;
                 self.expect(end, &Ty::Int, "for range end")?;
                 self.scopes.push(HashMap::new());
@@ -314,7 +342,10 @@ impl Checker {
                 };
                 let ret = self.cur_ret.clone();
                 if t != ret {
-                    return Err(format!("return type `{}` does not match declared `{}`", t, ret));
+                    return Err(format!(
+                        "return type `{}` does not match declared `{}`",
+                        t, ret
+                    ));
                 }
                 Ok(Ty::Unit)
             }
@@ -353,13 +384,19 @@ impl Checker {
                 match op {
                     Add | Sub | Mul | Div | Rem => {
                         if lt != Ty::Int || rt != Ty::Int {
-                            return Err(format!("arithmetic requires int, got `{}` and `{}`", lt, rt));
+                            return Err(format!(
+                                "arithmetic requires int, got `{}` and `{}`",
+                                lt, rt
+                            ));
                         }
                         Ok(Ty::Int)
                     }
                     Lt | Le | Gt | Ge => {
                         if !(lt == rt && (lt == Ty::Int || lt == Ty::Str)) {
-                            return Err(format!("ordering requires two ints or two strs, got `{}` and `{}`", lt, rt));
+                            return Err(format!(
+                                "ordering requires two ints or two strs, got `{}` and `{}`",
+                                lt, rt
+                            ));
                         }
                         Ok(Ty::Bool)
                     }
@@ -482,7 +519,11 @@ impl Checker {
                 }
                 Err(format!("no `{}::{}`", ty, member))
             }
-            Expr::MethodCall { receiver, method, args } => {
+            Expr::MethodCall {
+                receiver,
+                method,
+                args,
+            } => {
                 let rt = self.infer(receiver)?;
                 let tyname = match &rt {
                     Ty::Struct(n) | Ty::Enum(n) => n.clone(),
@@ -553,10 +594,17 @@ impl Checker {
         if !has_wildcard {
             match &scrut_ty {
                 Ty::Enum(e) => {
-                    let all: Vec<String> =
-                        self.enums.get(e).unwrap().iter().map(|(n, _)| n.clone()).collect();
-                    let missing: Vec<String> =
-                        all.into_iter().filter(|v| !covered_variants.contains(v)).collect();
+                    let all: Vec<String> = self
+                        .enums
+                        .get(e)
+                        .unwrap()
+                        .iter()
+                        .map(|(n, _)| n.clone())
+                        .collect();
+                    let missing: Vec<String> = all
+                        .into_iter()
+                        .filter(|v| !covered_variants.contains(v))
+                        .collect();
                     if !missing.is_empty() {
                         return Err(format!(
                             "non-exhaustive match on `{}`: missing variant(s) {} — add an arm for each, or a `_` arm",
@@ -608,20 +656,33 @@ impl Checker {
                     self.expect_ty(ty, &Ty::Enum(en), "variant pattern")?;
                     Ok(Coverage::Variant(name.clone()))
                 } else {
-                    self.scopes.last_mut().unwrap().insert(name.clone(), ty.clone());
+                    self.scopes
+                        .last_mut()
+                        .unwrap()
+                        .insert(name.clone(), ty.clone());
                     Ok(Coverage::Wildcard)
                 }
             }
-            Pattern::Variant { enum_name, name, subs } => {
+            Pattern::Variant {
+                enum_name,
+                name,
+                subs,
+            } => {
                 let en = match ty {
                     Ty::Enum(e) => e.clone(),
                     other => {
-                        return Err(format!("variant pattern `{}` used on non-enum `{}`", name, other))
+                        return Err(format!(
+                            "variant pattern `{}` used on non-enum `{}`",
+                            name, other
+                        ))
                     }
                 };
                 if let Some(expected) = enum_name {
                     if expected != &en {
-                        return Err(format!("variant `{}::{}` does not match enum `{}`", expected, name, en));
+                        return Err(format!(
+                            "variant `{}::{}` does not match enum `{}`",
+                            expected, name, en
+                        ));
                     }
                 }
                 let payloads = self

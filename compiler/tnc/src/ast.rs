@@ -80,10 +80,26 @@ pub struct Block {
 pub enum Stmt {
     /// `let`/`var` binding. `mutable` distinguishes var from let.
     /// `ty_ann` is an optional explicit type annotation (`let x: int = ...`).
-    Let { name: String, mutable: bool, ty_ann: Option<String>, init: Expr },
-    Assign { name: String, value: Expr },
-    While { cond: Expr, body: Block },
-    For { var: String, start: Expr, end: Expr, body: Block },
+    Let {
+        name: String,
+        mutable: bool,
+        ty_ann: Option<String>,
+        init: Expr,
+    },
+    Assign {
+        name: String,
+        value: Expr,
+    },
+    While {
+        cond: Expr,
+        body: Block,
+    },
+    For {
+        var: String,
+        start: Expr,
+        end: Expr,
+        body: Block,
+    },
     Return(Option<Expr>),
     Expr(Expr),
 }
@@ -94,25 +110,56 @@ pub enum Expr {
     Str(String),
     Bool(bool),
     Ident(String),
-    Unary { op: UnOp, rhs: Box<Expr> },
-    Binary { op: BinOp, lhs: Box<Expr>, rhs: Box<Expr> },
-    Call { callee: String, args: Vec<Expr> },
+    Unary {
+        op: UnOp,
+        rhs: Box<Expr>,
+    },
+    Binary {
+        op: BinOp,
+        lhs: Box<Expr>,
+        rhs: Box<Expr>,
+    },
+    Call {
+        callee: String,
+        args: Vec<Expr>,
+    },
     /// `if` is an EXPRESSION (yields a value). `els` is another Expr
     /// (either Expr::Block or a nested Expr::If) to support else-if chains.
-    If { cond: Box<Expr>, then_b: Block, els: Option<Box<Expr>> },
+    If {
+        cond: Box<Expr>,
+        then_b: Block,
+        els: Option<Box<Expr>>,
+    },
     Block(Block),
     /// `User { name: ..., age: ... }`
-    StructLit { name: String, fields: Vec<(String, Expr)> },
+    StructLit {
+        name: String,
+        fields: Vec<(String, Expr)>,
+    },
     /// `base.field`
-    Field { base: Box<Expr>, field: String },
+    Field {
+        base: Box<Expr>,
+        field: String,
+    },
     /// A `Type::member(args)` / `Type::member` path. Resolved at check time to
     /// either enum construction (`Shape::Circle(2)`, `Color::Red`) or an
     /// associated-function call (`Point::new(3, 4)`).
-    Path { ty: String, member: String, args: Vec<Expr> },
+    Path {
+        ty: String,
+        member: String,
+        args: Vec<Expr>,
+    },
     /// `receiver.method(args)`
-    MethodCall { receiver: Box<Expr>, method: String, args: Vec<Expr> },
+    MethodCall {
+        receiver: Box<Expr>,
+        method: String,
+        args: Vec<Expr>,
+    },
     /// `match scrutinee { pat => expr, ... }` — an expression.
-    Match { scrutinee: Box<Expr>, arms: Vec<MatchArm> },
+    Match {
+        scrutinee: Box<Expr>,
+        arms: Vec<MatchArm>,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -132,7 +179,11 @@ pub enum Pattern {
     Bool(bool),
     Str(String),
     /// `Circle(r)` or `Shape::Circle(r)` or `Shape::Red` — has `::` or `(...)`.
-    Variant { enum_name: Option<String>, name: String, subs: Vec<Pattern> },
+    Variant {
+        enum_name: Option<String>,
+        name: String,
+        subs: Vec<Pattern>,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -143,6 +194,15 @@ pub enum UnOp {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum BinOp {
-    Add, Sub, Mul, Div, Rem,
-    Eq, Ne, Lt, Le, Gt, Ge,
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Rem,
+    Eq,
+    Ne,
+    Lt,
+    Le,
+    Gt,
+    Ge,
 }

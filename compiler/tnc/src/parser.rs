@@ -20,7 +20,11 @@ type PResult<T> = Result<T, String>;
 
 impl Parser {
     pub fn new(toks: Vec<Token>) -> Self {
-        Parser { toks, pos: 0, allow_struct_lit: true }
+        Parser {
+            toks,
+            pos: 0,
+            allow_struct_lit: true,
+        }
     }
 
     /// Run `f` with struct-literal parsing disabled (for conditions/scrutinees).
@@ -134,7 +138,10 @@ impl Parser {
                 }
                 self.expect(TokenKind::RParen)?;
             }
-            variants.push(VariantDecl { name: vname, payloads });
+            variants.push(VariantDecl {
+                name: vname,
+                payloads,
+            });
             if !self.eat(&TokenKind::Comma) {
                 break;
             }
@@ -166,7 +173,12 @@ impl Parser {
             None
         };
         let body = self.parse_block()?;
-        Ok(FnDecl { name, params, ret, body })
+        Ok(FnDecl {
+            name,
+            params,
+            ret,
+            body,
+        })
     }
 
     /// A type is a single identifier for the MVP (primitive or user-defined name).
@@ -238,13 +250,25 @@ impl Parser {
             None
         };
         let body = self.parse_block()?;
-        Ok(MethodDecl { self_kind, func: FnDecl { name, params, ret, body } })
+        Ok(MethodDecl {
+            self_kind,
+            func: FnDecl {
+                name,
+                params,
+                ret,
+                body,
+            },
+        })
     }
 
     fn parse_ident(&mut self) -> PResult<String> {
         match self.advance() {
             TokenKind::Ident(s) => Ok(s),
-            other => Err(format!("line {}: expected identifier, found {:?}", self.line(), other)),
+            other => Err(format!(
+                "line {}: expected identifier, found {:?}",
+                self.line(),
+                other
+            )),
         }
     }
 
@@ -284,7 +308,12 @@ impl Parser {
         };
         self.expect(TokenKind::Assign)?;
         let init = self.parse_expr(0)?;
-        Ok(Stmt::Let { name, mutable, ty_ann, init })
+        Ok(Stmt::Let {
+            name,
+            mutable,
+            ty_ann,
+            init,
+        })
     }
 
     fn parse_while(&mut self) -> PResult<Stmt> {
@@ -302,7 +331,12 @@ impl Parser {
         self.expect(TokenKind::DotDot)?;
         let end = self.no_struct(|p| p.parse_expr(0))?;
         let body = self.parse_block()?;
-        Ok(Stmt::For { var, start, end, body })
+        Ok(Stmt::For {
+            var,
+            start,
+            end,
+            body,
+        })
     }
 
     fn parse_return(&mut self) -> PResult<Stmt> {
@@ -340,7 +374,11 @@ impl Parser {
             }
             self.advance();
             let rhs = self.parse_expr(r_bp)?;
-            lhs = Expr::Binary { op, lhs: Box::new(lhs), rhs: Box::new(rhs) };
+            lhs = Expr::Binary {
+                op,
+                lhs: Box::new(lhs),
+                rhs: Box::new(rhs),
+            };
         }
         Ok(lhs)
     }
@@ -354,9 +392,16 @@ impl Parser {
             let name = self.parse_ident()?;
             if self.peek() == &TokenKind::LParen {
                 let args = self.parse_call_args()?;
-                e = Expr::MethodCall { receiver: Box::new(e), method: name, args };
+                e = Expr::MethodCall {
+                    receiver: Box::new(e),
+                    method: name,
+                    args,
+                };
             } else {
-                e = Expr::Field { base: Box::new(e), field: name };
+                e = Expr::Field {
+                    base: Box::new(e),
+                    field: name,
+                };
             }
         }
         Ok(e)
@@ -367,12 +412,18 @@ impl Parser {
             TokenKind::Minus => {
                 self.advance();
                 let rhs = self.parse_expr(7)?;
-                Ok(Expr::Unary { op: UnOp::Neg, rhs: Box::new(rhs) })
+                Ok(Expr::Unary {
+                    op: UnOp::Neg,
+                    rhs: Box::new(rhs),
+                })
             }
             TokenKind::Bang => {
                 self.advance();
                 let rhs = self.parse_expr(7)?;
-                Ok(Expr::Unary { op: UnOp::Not, rhs: Box::new(rhs) })
+                Ok(Expr::Unary {
+                    op: UnOp::Not,
+                    rhs: Box::new(rhs),
+                })
             }
             TokenKind::Int(n) => {
                 self.advance();
@@ -410,7 +461,11 @@ impl Parser {
                     } else {
                         Vec::new()
                     };
-                    Ok(Expr::Path { ty: name, member, args })
+                    Ok(Expr::Path {
+                        ty: name,
+                        member,
+                        args,
+                    })
                 } else if self.peek() == &TokenKind::LParen {
                     // Function call OR bare tuple-variant construction (resolved at runtime).
                     let args = self.parse_call_args()?;
@@ -442,7 +497,11 @@ impl Parser {
         } else {
             None
         };
-        Ok(Expr::If { cond: Box::new(cond), then_b, els })
+        Ok(Expr::If {
+            cond: Box::new(cond),
+            then_b,
+            els,
+        })
     }
 
     fn parse_call_args(&mut self) -> PResult<Vec<Expr>> {
@@ -500,7 +559,10 @@ impl Parser {
             self.eat(&TokenKind::Comma); // optional trailing comma
         }
         self.expect(TokenKind::RBrace)?;
-        Ok(Expr::Match { scrutinee: Box::new(scrutinee), arms })
+        Ok(Expr::Match {
+            scrutinee: Box::new(scrutinee),
+            arms,
+        })
     }
 
     fn parse_pattern(&mut self) -> PResult<Pattern> {
@@ -514,7 +576,11 @@ impl Parser {
                 self.advance();
                 match self.advance() {
                     TokenKind::Int(n) => Ok(Pattern::Int(-n)),
-                    other => Err(format!("line {}: expected number after '-', found {:?}", self.line(), other)),
+                    other => Err(format!(
+                        "line {}: expected number after '-', found {:?}",
+                        self.line(),
+                        other
+                    )),
                 }
             }
             TokenKind::Str(s) => {
@@ -538,16 +604,28 @@ impl Parser {
                     self.advance();
                     let variant = self.parse_ident()?;
                     let subs = self.parse_pattern_subs()?;
-                    Ok(Pattern::Variant { enum_name: Some(name), name: variant, subs })
+                    Ok(Pattern::Variant {
+                        enum_name: Some(name),
+                        name: variant,
+                        subs,
+                    })
                 } else if self.peek() == &TokenKind::LParen {
                     let subs = self.parse_pattern_subs()?;
-                    Ok(Pattern::Variant { enum_name: None, name, subs })
+                    Ok(Pattern::Variant {
+                        enum_name: None,
+                        name,
+                        subs,
+                    })
                 } else {
                     // Bare name: binding or unit variant (resolved at match time).
                     Ok(Pattern::Ident(name))
                 }
             }
-            other => Err(format!("line {}: invalid pattern, found {:?}", self.line(), other)),
+            other => Err(format!(
+                "line {}: invalid pattern, found {:?}",
+                self.line(),
+                other
+            )),
         }
     }
 

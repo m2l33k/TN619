@@ -9,6 +9,12 @@
 - [x] `examples/` with bilingual sample programs.
 - [x] `docs/` with design + roadmap.
 - [x] `README.md`.
+- [x] `tests/` — integration suite (`compiler/tnc/tests/run_examples.rs`):
+      golden-output tests for every bilingual example + rejection tests +
+      Trojan-Source security regression. 11 tests, all green.
+- [x] **CI** (`.github/workflows/ci.yml`): build + test + `cargo fmt --check` on
+      every push/PR.
+- [x] `LICENSE-MIT` (dual MIT OR Apache-2.0 intent), `.gitignore`.
 
 ## ⬜ Not done (target monorepo)
 - [ ] Split `tnc` into per-stage crates: `tn_span`, `tn_errors`, `tn_lexer`,
@@ -17,8 +23,8 @@
       `tn_cli`.
 - [ ] `std/` — standard library (Phase 7).
 - [ ] `tnpkg/`, `tnfmt/`, `tnlint/`, `tnls/`, `tndoc/` — tooling (Phase 6).
-- [ ] `tests/` — integration + conformance test suite (bilingual).
-- [ ] CI (build, test, fmt, lint), issue templates, CONTRIBUTING, LICENSE.
+- [ ] `LICENSE-APACHE` (the Apache-2.0 half of the dual license).
+- [ ] `clippy` in CI; issue templates, CONTRIBUTING.
 - [ ] Benchmarks harness.
 
 ## Forward plan

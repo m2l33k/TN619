@@ -15,8 +15,15 @@ pub enum Value {
     Bool(bool),
     Str(String),
     Unit,
-    Struct { name: String, fields: Vec<(String, Value)> },
-    Enum { enum_name: String, variant: String, data: Vec<Value> },
+    Struct {
+        name: String,
+        fields: Vec<(String, Value)>,
+    },
+    Enum {
+        enum_name: String,
+        variant: String,
+        data: Vec<Value>,
+    },
 }
 
 impl fmt::Display for Value {
@@ -160,11 +167,20 @@ impl Interp {
         self.scopes.push(Scope::new());
         if let Some(sv) = self_val {
             // Bound under both spellings so EN/AR method bodies both work.
-            self.scopes.last_mut().unwrap().insert("self".into(), (sv.clone(), false));
-            self.scopes.last_mut().unwrap().insert("الذات".into(), (sv, false));
+            self.scopes
+                .last_mut()
+                .unwrap()
+                .insert("self".into(), (sv.clone(), false));
+            self.scopes
+                .last_mut()
+                .unwrap()
+                .insert("الذات".into(), (sv, false));
         }
         for (p, a) in f.params.iter().zip(args) {
-            self.scopes.last_mut().unwrap().insert(p.name.clone(), (a, false));
+            self.scopes
+                .last_mut()
+                .unwrap()
+                .insert(p.name.clone(), (a, false));
         }
         let result = match self.eval_block(&f.body) {
             Ok(v) => Ok(v),
@@ -193,9 +209,17 @@ impl Interp {
 
     fn eval_stmt(&mut self, s: &Stmt) -> EResult<Value> {
         match s {
-            Stmt::Let { name, mutable, init, .. } => {
+            Stmt::Let {
+                name,
+                mutable,
+                init,
+                ..
+            } => {
                 let v = self.eval_expr(init)?;
-                self.scopes.last_mut().unwrap().insert(name.clone(), (v, *mutable));
+                self.scopes
+                    .last_mut()
+                    .unwrap()
+                    .insert(name.clone(), (v, *mutable));
                 Ok(Value::Unit)
             }
             Stmt::Assign { name, value } => {
@@ -209,13 +233,21 @@ impl Interp {
                 }
                 Ok(Value::Unit)
             }
-            Stmt::For { var, start, end, body } => {
+            Stmt::For {
+                var,
+                start,
+                end,
+                body,
+            } => {
                 let s = self.as_int(start)?;
                 let e = self.as_int(end)?;
                 let mut i = s;
                 while i < e {
                     self.scopes.push(Scope::new());
-                    self.scopes.last_mut().unwrap().insert(var.clone(), (Value::Int(i), false));
+                    self.scopes
+                        .last_mut()
+                        .unwrap()
+                        .insert(var.clone(), (Value::Int(i), false));
                     let r = self.eval_block(body);
                     self.scopes.pop();
                     r?;
@@ -244,7 +276,11 @@ impl Interp {
                     Ok(v)
                 } else if let Some((enum_name, 0)) = self.variants.get(name).cloned() {
                     // Bare unit variant, e.g. `None` / `Red`.
-                    Ok(Value::Enum { enum_name, variant: name.clone(), data: vec![] })
+                    Ok(Value::Enum {
+                        enum_name,
+                        variant: name.clone(),
+                        data: vec![],
+                    })
                 } else {
                     Err(Flow::Error(format!("cannot find `{}` in scope", name)))
                 }
@@ -282,7 +318,11 @@ impl Interp {
                             vals.len()
                         )));
                     }
-                    return Ok(Value::Enum { enum_name, variant: callee.clone(), data: vals });
+                    return Ok(Value::Enum {
+                        enum_name,
+                        variant: callee.clone(),
+                        data: vals,
+                    });
                 }
                 let f = self
                     .funcs
@@ -329,7 +369,10 @@ impl Interp {
                     let v = self.eval_expr(fexpr)?;
                     out.push((fname.clone(), v));
                 }
-                Ok(Value::Struct { name: name.clone(), fields: out })
+                Ok(Value::Struct {
+                    name: name.clone(),
+                    fields: out,
+                })
             }
             Expr::Field { base, field } => {
                 let b = self.eval_expr(base)?;
@@ -378,11 +421,14 @@ impl Interp {
                 }
                 Err(Flow::Error(format!("no `{}::{}`", ty, member)))
             }
-            Expr::MethodCall { receiver, method, args } => {
+            Expr::MethodCall {
+                receiver,
+                method,
+                args,
+            } => {
                 let recv = self.eval_expr(receiver)?;
-                let tyname = type_name_of(&recv).ok_or_else(|| {
-                    Flow::Error(format!("type `{}` has no methods", recv))
-                })?;
+                let tyname = type_name_of(&recv)
+                    .ok_or_else(|| Flow::Error(format!("type `{}` has no methods", recv)))?;
                 let m = self
                     .methods
                     .get(&(tyname.clone(), method.clone()))
@@ -443,8 +489,16 @@ impl Interp {
                     true
                 }
             }
-            Pattern::Variant { enum_name, name, subs } => match val {
-                Value::Enum { enum_name: en, variant, data } => {
+            Pattern::Variant {
+                enum_name,
+                name,
+                subs,
+            } => match val {
+                Value::Enum {
+                    enum_name: en,
+                    variant,
+                    data,
+                } => {
                     if variant != name {
                         return false;
                     }
@@ -458,7 +512,9 @@ impl Interp {
                     }
                     // Clone payloads to avoid borrowing self while matching subs.
                     let data = data.clone();
-                    subs.iter().zip(data.iter()).all(|(p, v)| self.match_pattern(p, v))
+                    subs.iter()
+                        .zip(data.iter())
+                        .all(|(p, v)| self.match_pattern(p, v))
                 }
                 _ => false,
             },
@@ -472,7 +528,10 @@ impl Interp {
                 let (a, b) = match (l, r) {
                     (Value::Int(a), Value::Int(b)) => (a, b),
                     (l, r) => {
-                        return Err(Flow::Error(format!("arithmetic on non-ints: {} {:?} {}", l, op, r)))
+                        return Err(Flow::Error(format!(
+                            "arithmetic on non-ints: {} {:?} {}",
+                            l, op, r
+                        )))
                     }
                 };
                 let v = match op {
@@ -530,7 +589,10 @@ impl Interp {
     fn truthy(&mut self, e: &Expr) -> EResult<bool> {
         match self.eval_expr(e)? {
             Value::Bool(b) => Ok(b),
-            v => Err(Flow::Error(format!("condition must be a bool, found {}", v))),
+            v => Err(Flow::Error(format!(
+                "condition must be a bool, found {}",
+                v
+            ))),
         }
     }
 

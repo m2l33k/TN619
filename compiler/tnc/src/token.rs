@@ -7,21 +7,21 @@
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenKind {
     // Keywords (language-neutral after this point)
-    Let,      // let   / دع
-    Var,      // var   / متغير
-    Fn,       // fn    / دالة
-    If,       // if    / اذا
-    Else,     // else  / وإلا
-    While,    // while / طالما
-    For,      // for   / لكل
-    In,       // in    / في
-    Return,   // return/ أرجع
-    True,     // true  / صحيح
-    False,    // false / خطأ
-    Struct,   // struct/ هيكل
-    Enum,     // enum  / تعداد
-    Match,    // match / طابق
-    Impl,     // impl  / تطبيق
+    Let,    // let   / دع
+    Var,    // var   / متغير
+    Fn,     // fn    / دالة
+    If,     // if    / اذا
+    Else,   // else  / وإلا
+    While,  // while / طالما
+    For,    // for   / لكل
+    In,     // in    / في
+    Return, // return/ أرجع
+    True,   // true  / صحيح
+    False,  // false / خطأ
+    Struct, // struct/ هيكل
+    Enum,   // enum  / تعداد
+    Match,  // match / طابق
+    Impl,   // impl  / تطبيق
 
     // Literals
     Int(i64),
@@ -29,13 +29,25 @@ pub enum TokenKind {
     Ident(String),
 
     // Operators
-    Plus, Minus, Star, Slash, Percent,
-    EqEq, Ne, Lt, Le, Gt, Ge,
+    Plus,
+    Minus,
+    Star,
+    Slash,
+    Percent,
+    EqEq,
+    Ne,
+    Lt,
+    Le,
+    Gt,
+    Ge,
     Assign,
     Bang,
 
     // Delimiters
-    LParen, RParen, LBrace, RBrace,
+    LParen,
+    RParen,
+    LBrace,
+    RBrace,
     Comma,    // ,  /  ، (U+060C)
     DotDot,   // .. (exclusive range, used in `for`)
     Dot,      // .  (field access)

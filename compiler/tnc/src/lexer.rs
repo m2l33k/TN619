@@ -9,8 +9,9 @@
 //! (zero allocation), integer literals are accumulated directly into an `i64`,
 //! and heap allocation happens ONLY for `Ident` and `Str` token payloads.
 //!
-//! Deferred (require external crates): Unicode NFC normalization and
-//! Trojan-Source / bidi-control rejection — documented hooks, see Phase 3 roadmap.
+//! Security: rejects Trojan-Source / bidirectional control characters
+//! (CVE-2021-42574) anywhere in source. Deferred (need external crates): Unicode
+//! NFC normalization and XID-based identifiers — see Phase 3 roadmap.
 
 use crate::token::{keyword, Token, TokenKind};
 
@@ -22,7 +23,11 @@ pub struct Lexer<'a> {
 
 impl<'a> Lexer<'a> {
     pub fn new(src: &'a str) -> Self {
-        Lexer { src, pos: 0, line: 1 }
+        Lexer {
+            src,
+            pos: 0,
+            line: 1,
+        }
     }
 
     /// The next char without consuming it. O(1): decodes a single scalar.
@@ -60,7 +65,10 @@ impl<'a> Lexer<'a> {
             let line = self.line;
             let c = match self.peek() {
                 None => {
-                    out.push(Token { kind: TokenKind::Eof, line });
+                    out.push(Token {
+                        kind: TokenKind::Eof,
+                        line,
+                    });
                     return Ok(out);
                 }
                 Some(c) => c,
@@ -276,8 +284,15 @@ fn is_digit(c: char) -> bool {
 fn is_bidi_control(c: char) -> bool {
     matches!(
         c,
-        '\u{202A}' | '\u{202B}' | '\u{202C}' | '\u{202D}' | '\u{202E}'
-            | '\u{2066}' | '\u{2067}' | '\u{2068}' | '\u{2069}'
+        '\u{202A}'
+            | '\u{202B}'
+            | '\u{202C}'
+            | '\u{202D}'
+            | '\u{202E}'
+            | '\u{2066}'
+            | '\u{2067}'
+            | '\u{2068}'
+            | '\u{2069}'
     )
 }
 
