@@ -1,0 +1,34 @@
+// TN619 — English, Arabic, and French COMBINED in a single program.
+// Three keyword surfaces, one AST: declarations, methods, and even single
+// expressions mix languages freely.
+
+// English struct declaration...
+struct Account {
+    balance: int,
+    owner: str,
+}
+
+// ...with a FRENCH `impl` (implémente) block holding an ARABIC method.
+implémente Account {
+    دالة أضف(&الذات, مبلغ: عدد) -> Account {
+        Account { balance: الذات.balance + مبلغ, owner: الذات.owner }
+    }
+    // French method on the same English struct: `&soi` is `&self`.
+    fonction étiquette(&soi) -> chaîne {
+        si soi.balance > 120 { "riche" } sinon { "modeste" }
+    }
+}
+
+// Entry point in French (fonction principal == fn main), mixing all three:
+fonction principal() {
+    soit acc = Account { balance: 100, owner: "Sara" }  // French `let`
+    دع acc2 = acc.أضف(٥٠)                               // Arabic `let`, Arabic digits
+
+    affiche("solde:", acc2.balance)                      // French `print`
+    اطبع("المالك:", acc2.owner)                          // Arabic `print`
+    print("label:", acc2.étiquette())                    // English `print`
+
+    // French + English keywords in the SAME control-flow expression:
+    let verdict = si acc2.balance > 200 { "très riche" } else { "ça va" }
+    affiche("verdict:", verdict)
+}

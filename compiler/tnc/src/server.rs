@@ -1,8 +1,8 @@
 //! A tiny, dependency-free HTTP server for the TN619 web playground.
 //!
 //! `tnc serve [port]` starts it; open the printed URL in a browser, type TN619
-//! code (English, Arabic, or mixed), and run it. Uses only `std::net` — no web
-//! framework, no external crates.
+//! code (English, Arabic, French, or mixed), and run it. Uses only `std::net` —
+//! no web framework, no external crates.
 
 use crate::compile_and_run;
 use std::io::{Read, Write};
@@ -133,12 +133,13 @@ const PAGE: &str = r####"<!doctype html>
 </head>
 <body>
   <header>
-    <h1>TN619 Playground <span>— write systems code in English or Arabic</span></h1>
+    <h1>TN619 Playground <span>— write systems code in English, Arabic, or French</span></h1>
   </header>
   <div class="bar">
     <button onclick="run()">▶ Run (Ctrl+Enter)</button>
     <button class="alt" onclick="load('en')">English sample</button>
     <button class="alt" onclick="load('ar')">Arabic sample</button>
+    <button class="alt" onclick="load('fr')">French sample</button>
     <button class="alt" onclick="load('poly')">Mixed sample</button>
   </div>
   <div class="wrap">
@@ -155,7 +156,8 @@ const PAGE: &str = r####"<!doctype html>
 const samples = {
   en: `fn main() {\n    let age = 20\n    if age > 18 {\n        print("Adult")\n    }\n    print("sum:", sum_to(5))\n}\n\nfn sum_to(n: int) -> int {\n    var s = 0\n    for i in 1..n {\n        s = s + i\n    }\n    s + n\n}`,
   ar: `دالة رئيسي() {\n    دع العمر = ٢٠\n    اذا العمر > ١٨ {\n        اطبع("بالغ")\n    }\n    اطبع("المضروب:", مضروب(٥))\n}\n\nدالة مضروب(ن: عدد) -> عدد {\n    اذا ن <= ١ { ١ } وإلا { ن * مضروب(ن - ١) }\n}`,
-  poly: `struct Point { x: int, y: int }\n\nتطبيق Point {\n    دالة sum(&الذات) -> عدد { الذات.x + الذات.y }\n}\n\nدالة رئيسي() {\n    دع p = Point { x: ٣, y: ٤ }\n    اطبع("sum = {p.sum()}")\n}`
+  fr: `fonction principal() {\n    soit âge = 20\n    si âge > 18 {\n        affiche("Adulte")\n    }\n    affiche("factorielle:", factorielle(5))\n}\n\nfonction factorielle(n: entier) -> entier {\n    si n <= 1 { 1 } sinon { n * factorielle(n - 1) }\n}`,
+  poly: `struct Point { x: int, y: int }\n\nتطبيق Point {\n    دالة sum(&الذات) -> عدد { الذات.x + الذات.y }\n}\n\nfonction principal() {\n    soit p = Point { x: ٣, y: ٤ }\n    affiche("sum = {p.sum()}")\n}`
 };
 function load(k){ document.getElementById('src').value = samples[k]; }
 async function run(){

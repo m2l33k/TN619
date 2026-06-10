@@ -85,10 +85,10 @@ impl Checker {
     /// Resolve a type-name string to a `Ty`, using the known struct/enum names.
     fn resolve(&self, name: &str) -> Result<Ty, String> {
         Ok(match name {
-            "int" | "عدد" => Ty::Int,
-            "f64" | "float" | "عائم" => Ty::Float,
-            "bool" | "منطقي" => Ty::Bool,
-            "str" | "نص" => Ty::Str,
+            "int" | "عدد" | "entier" => Ty::Int,
+            "f64" | "float" | "عائم" | "flottant" => Ty::Float,
+            "bool" | "منطقي" | "booléen" | "booleen" => Ty::Bool,
+            "str" | "نص" | "chaîne" | "chaine" => Ty::Str,
             "unit" => Ty::Unit,
             other if self.struct_names.contains(other) => Ty::Struct(other.to_string()),
             other if self.enum_names.contains(other) => Ty::Enum(other.to_string()),
@@ -212,15 +212,13 @@ impl Checker {
 
         self.scopes.push(HashMap::new());
         if m.self_kind != SelfKind::None {
-            // `self` is visible under both spellings inside the body.
-            self.scopes
-                .last_mut()
-                .unwrap()
-                .insert("self".into(), self_ty.clone());
-            self.scopes
-                .last_mut()
-                .unwrap()
-                .insert("الذات".into(), self_ty.clone());
+            // `self` is visible under all three spellings inside the body.
+            for name in ["self", "الذات", "soi"] {
+                self.scopes
+                    .last_mut()
+                    .unwrap()
+                    .insert(name.into(), self_ty.clone());
+            }
         }
         for (p, t) in m.func.params.iter().zip(param_tys) {
             self.scopes.last_mut().unwrap().insert(p.name.clone(), t);

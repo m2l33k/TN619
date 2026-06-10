@@ -1,6 +1,7 @@
-//! Hand-written bilingual lexer.
+//! Hand-written trilingual lexer.
 //!
-//! Handles: English + Arabic identifiers/keywords, Arabic-Indic + Extended
+//! Handles: English + Arabic + French identifiers/keywords (accented Latin
+//! letters are ordinary identifier characters), Arabic-Indic + Extended
 //! (Persian) digit folding (٠-٩ / ۰-۹ -> 0-9), bilingual punctuation
 //! (، -> Comma), `//` line comments.
 //!

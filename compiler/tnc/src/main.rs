@@ -3,7 +3,7 @@
 //! Usage:
 //!   tnc run <file.tn>     Lex, parse, type-check, and execute a program.
 //!   tnc check <file.tn>   Type-check only.
-//!   tnc tokens <file.tn>  Dump the token stream (proves bilingual lexing).
+//!   tnc tokens <file.tn>  Dump the token stream (proves trilingual lexing).
 //!   tnc serve [port]      Start the local web playground (default port 8080).
 
 mod ast;

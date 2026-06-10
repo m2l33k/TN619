@@ -1,0 +1,26 @@
+// TN619 — surface syntaxique française
+fonction principal() {
+    soit âge = 20
+
+    si âge > 18 {
+        affiche("Adulte")
+    } sinon {
+        affiche("Mineur")
+    }
+
+    variable somme = 0
+    pour i dans 1..6 {
+        somme = somme + i
+    }
+    affiche("somme 1..5 =", somme)
+
+    affiche("factorielle(5) =", factorielle(5))
+}
+
+fonction factorielle(n: entier) -> entier {
+    si n <= 1 {
+        1
+    } sinon {
+        n * factorielle(n - 1)
+    }
+}

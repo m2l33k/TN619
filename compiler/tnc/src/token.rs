@@ -1,28 +1,28 @@
-//! Token definitions and the bilingual keyword map.
+//! Token definitions and the trilingual keyword map.
 //!
-//! THE CORE BILINGUAL MECHANISM lives in `keyword()`: English and Arabic
-//! spellings map to the SAME language-neutral `TokenKind`. After lexing,
-//! nothing downstream knows whether the source was English or Arabic.
+//! THE CORE TRILINGUAL MECHANISM lives in `keyword()`: English, Arabic, and
+//! French spellings map to the SAME language-neutral `TokenKind`. After lexing,
+//! nothing downstream knows which surface language the source was written in.
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenKind {
     // Keywords (language-neutral after this point)
-    Let,    // let   / دع
-    Var,    // var   / متغير
-    Fn,     // fn    / دالة
-    If,     // if    / اذا
-    Else,   // else  / وإلا
-    While,  // while / طالما
-    For,    // for   / لكل
-    In,     // in    / في
-    Return, // return/ أرجع
-    True,   // true  / صحيح
-    False,  // false / خطأ
-    Struct, // struct/ هيكل
-    Enum,   // enum  / تعداد
-    Match,  // match / طابق
-    Impl,   // impl  / تطبيق
-    As,     // as    / كـ  (numeric cast)
+    Let,    // let   / دع     / soit
+    Var,    // var   / متغير  / variable
+    Fn,     // fn    / دالة   / fonction
+    If,     // if    / اذا    / si
+    Else,   // else  / وإلا   / sinon
+    While,  // while / طالما  / tantque
+    For,    // for   / لكل    / pour
+    In,     // in    / في     / dans
+    Return, // return/ أرجع   / retourne
+    True,   // true  / صحيح   / vrai
+    False,  // false / خطأ    / faux
+    Struct, // struct/ هيكل   / structure
+    Enum,   // enum  / تعداد  / énum
+    Match,  // match / طابق   / selon
+    Impl,   // impl  / تطبيق  / implémente
+    As,     // as    / كـ     / comme  (numeric cast)
 
     // Literals
     Int(i64),
@@ -79,34 +79,38 @@ pub struct Token {
     pub line: usize,
 }
 
-/// The bilingual keyword table. This single function is the entire
-/// "two surfaces, one semantics" guarantee for keywords.
+/// The trilingual keyword table. This single function is the entire
+/// "three surfaces, one semantics" guarantee for keywords.
+///
+/// French spellings that carry accents also accept an accent-stripped
+/// fallback (`énum`/`enum`, `implémente`/`implemente`) so the language stays
+/// typable on a keyboard without dead keys.
 pub fn keyword(word: &str) -> Option<TokenKind> {
     use TokenKind::*;
     let k = match word {
-        "let" | "دع" => Let,
-        "var" | "متغير" => Var,
-        "fn" | "دالة" => Fn,
-        "if" | "اذا" => If,
-        "else" | "وإلا" => Else,
-        "while" | "طالما" => While,
-        "for" | "لكل" => For,
-        "in" | "في" => In,
-        "return" | "أرجع" => Return,
-        "true" | "صحيح" => True,
-        "false" | "خطأ" => False,
-        "struct" | "هيكل" => Struct,
-        "enum" | "تعداد" => Enum,
-        "match" | "طابق" => Match,
-        "impl" | "تطبيق" => Impl,
-        "as" | "كـ" => As,
+        "let" | "دع" | "soit" => Let,
+        "var" | "متغير" | "variable" => Var,
+        "fn" | "دالة" | "fonction" => Fn,
+        "if" | "اذا" | "si" => If,
+        "else" | "وإلا" | "sinon" => Else,
+        "while" | "طالما" | "tantque" => While,
+        "for" | "لكل" | "pour" => For,
+        "in" | "في" | "dans" => In,
+        "return" | "أرجع" | "retourne" => Return,
+        "true" | "صحيح" | "vrai" => True,
+        "false" | "خطأ" | "faux" => False,
+        "struct" | "هيكل" | "structure" => Struct,
+        "enum" | "تعداد" | "énum" => Enum,
+        "match" | "طابق" | "selon" => Match,
+        "impl" | "تطبيق" | "implémente" | "implemente" => Impl,
+        "as" | "كـ" | "comme" => As,
         _ => return None,
     };
     Some(k)
 }
 
-/// `print` / `اطبع` is a builtin function name, not a keyword — both spellings
-/// resolve to the same builtin in the interpreter.
+/// `print` / `اطبع` / `affiche` is a builtin function name, not a keyword —
+/// all spellings resolve to the same builtin in the interpreter.
 pub fn is_print_builtin(name: &str) -> bool {
-    name == "print" || name == "اطبع"
+    name == "print" || name == "اطبع" || name == "affiche"
 }

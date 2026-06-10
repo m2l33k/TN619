@@ -215,10 +215,10 @@ impl Parser {
         Ok(Param { name, ty })
     }
 
-    /// Consumes a `self` / `الذات` identifier if present.
+    /// Consumes a `self` / `الذات` / `soi` identifier if present.
     fn eat_self(&mut self) -> bool {
         if let TokenKind::Ident(s) = self.peek() {
-            if s == "self" || s == "الذات" {
+            if s == "self" || s == "الذات" || s == "soi" {
                 self.advance();
                 return true;
             }

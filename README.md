@@ -1,20 +1,21 @@
 # TN619
 
-A modern systems programming language with **bilingual (English + Arabic) source syntax**,
-Rust-class safety and performance goals, and a beginner-friendly design.
+A modern systems programming language with **trilingual (English + Arabic + French)
+source syntax**, Rust-class safety and performance goals, and a beginner-friendly design.
 
-English and Arabic keywords compile to the **same AST** — the language surface is
-erased at the lexer boundary, so the type system, semantics, and tooling are monolingual.
+English, Arabic, and French keywords compile to the **same AST** — the language surface
+is erased at the lexer boundary, so the type system, semantics, and tooling are monolingual.
 
 ```
-fn main() {                 دالة رئيسي() {
-    let age = 20                دع العمر = ٢٠
-    if age > 18 {              اذا العمر > ١٨ {
-        print("Adult")            اطبع("بالغ")
-    }                          }
-}                           }
+fn main() {                 دالة رئيسي() {              fonction principal() {
+    let age = 20                دع العمر = ٢٠               soit âge = 20
+    if age > 18 {              اذا العمر > ١٨ {             si âge > 18 {
+        print("Adult")            اطبع("بالغ")                 affiche("Adulte")
+    }                          }                           }
+}                           }                           }
 ```
-Both of the above produce identical tokens, AST, and output.
+All three of the above produce identical tokens, AST, and output — and the three
+surfaces can be **mixed freely in one program** (see `examples/trilingue.tn`).
 
 ## Documentation
 
@@ -34,8 +35,8 @@ comes later). It currently supports: variables (`let`/`var`), arithmetic, functi
 **structs**, **enums** (unit + tuple variants), **pattern matching** (`match` with
 literal/binding/wildcard/variant patterns), field access, **methods & associated
 functions** (`impl` blocks with `self`/`&self`), and
-**bilingual keywords + Arabic-Indic / Persian digits** — in English, Arabic, or
-mixed source.
+**trilingual keywords + Arabic-Indic / Persian digits** — in English, Arabic,
+French, or mixed source.
 
 A **static type checker** runs before execution: it infers `let` types, checks function
 signatures / struct fields / enum payloads against explicit annotations, and performs
@@ -46,8 +47,25 @@ Secure-by-default touches already present: immutable bindings by default, no tru
 (conditions must be `bool`), **checked integer arithmetic** (overflow is an error), and
 **Trojan-Source defense** (bidirectional control characters are rejected in source).
 
-Primitive type names: `int`/`عدد`, `bool`/`منطقي`, `str`/`نص`. Function parameters and
-return types are explicit (`fn f(n: int) -> int`); local `let` types are inferred.
+Primitive type names: `int`/`عدد`/`entier`, `bool`/`منطقي`/`booléen`,
+`str`/`نص`/`chaîne`, `float`/`عائم`/`flottant`. Function parameters and return
+types are explicit (`fn f(n: int) -> int`); local `let` types are inferred.
+French keywords with accents also accept accent-stripped spellings
+(`énum`/`enum`, `chaîne`/`chaine`, `booléen`/`booleen`).
+
+| en | ar | fr | | en | ar | fr |
+|---|---|---|---|---|---|---|
+| `let` | `دع` | `soit` | | `true` | `صحيح` | `vrai` |
+| `var` | `متغير` | `variable` | | `false` | `خطأ` | `faux` |
+| `fn` | `دالة` | `fonction` | | `struct` | `هيكل` | `structure` |
+| `if` | `اذا` | `si` | | `enum` | `تعداد` | `énum` |
+| `else` | `وإلا` | `sinon` | | `match` | `طابق` | `selon` |
+| `while` | `طالما` | `tantque` | | `impl` | `تطبيق` | `implémente` |
+| `for` | `لكل` | `pour` | | `as` | `كـ` | `comme` |
+| `in` | `في` | `dans` | | `self` | `الذات` | `soi` |
+| `return` | `أرجع` | `retourne` | | `print` | `اطبع` | `affiche` |
+
+Entry point: `fn main()` / `دالة رئيسي()` / `fonction principal()`.
 
 ## Build & run
 
@@ -57,8 +75,12 @@ Requires Rust (stable). No other dependencies.
 cargo build
 cargo run -- run examples/adult_en.tn      # English
 cargo run -- run examples/adult_ar.tn      # Arabic
+cargo run -- run examples/adult_fr.tn      # French
 cargo run -- run examples/mixed.tn         # mixed
 cargo run -- run examples/polyglot.tn      # English + Arabic combined in ONE program
+cargo run -- run examples/trilingue.tn     # English + Arabic + French in ONE program
+cargo run -- run examples/shapes_fr.tn     # structs + énums + selon (French)
+cargo run -- run examples/points_fr.tn     # méthodes + fonctions associées (French)
 cargo run -- run examples/interp_en.tn     # string interpolation (English)
 cargo run -- run examples/interp_ar.tn     # string interpolation (Arabic)
 cargo run -- run examples/floats_en.tn     # f64 + numeric casts (English)
@@ -81,14 +103,14 @@ TN619/
 ├── Cargo.toml              # workspace root
 ├── compiler/tnc/           # bootstrap compiler (MVP)
 │   └── src/
-│       ├── token.rs        # tokens + the bilingual keyword map (the core mechanism)
-│       ├── lexer.rs        # bilingual lexer (Arabic digit folding, bilingual comma)
+│       ├── token.rs        # tokens + the trilingual keyword map (the core mechanism)
+│       ├── lexer.rs        # trilingual lexer (Arabic digit folding, bilingual comma)
 │       ├── ast.rs          # language-neutral AST
 │       ├── parser.rs       # recursive descent + Pratt
 │       ├── typeck.rs       # static type checker + match exhaustiveness
 │       ├── interp.rs       # tree-walking interpreter (temporary backend)
 │       └── main.rs         # `tnc` CLI
-└── examples/               # bilingual sample programs
+└── examples/               # trilingual sample programs
 ```
 
 ## Deferred (documented in source / roadmap)

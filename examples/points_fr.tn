@@ -1,0 +1,25 @@
+// TN619 — méthodes et fonctions associées (surface française)
+structure Point { x: entier, y: entier }
+
+implémente Point {
+    // fonction associée (sans soi) — appelée Point::nouveau(..)
+    fonction nouveau(x: entier, y: entier) -> Point {
+        Point { x: x, y: y }
+    }
+    // méthode (&soi) — appelée p.somme()
+    fonction somme(&soi) -> entier {
+        soi.x + soi.y
+    }
+    // méthode qui retourne une nouvelle valeur, en appelant une autre méthode
+    fonction décalé(&soi, dx: entier) -> Point {
+        Point { x: soi.x + dx, y: soi.y }
+    }
+}
+
+fonction principal() {
+    soit p = Point::nouveau(3, 4)
+    affiche("p.somme:", p.somme())
+
+    soit q = p.décalé(10)
+    affiche("q.x:", q.x, "q.somme:", q.somme())
+}

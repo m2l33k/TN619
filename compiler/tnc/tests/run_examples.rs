@@ -48,7 +48,7 @@ fn run_fail(name: &str) -> String {
     String::from_utf8_lossy(&out.stderr).replace("\r\n", "\n")
 }
 
-// ---- good programs: exact output (English + Arabic) ----
+// ---- good programs: exact output (English + Arabic + French) ----
 
 #[test]
 fn adult_en() {
@@ -90,6 +90,35 @@ fn points_en() {
 #[test]
 fn points_ar() {
     assert_eq!(run_ok("points_ar.tn"), "ن.مجموع: 7\nم.س: 13 م.مجموع: 17\n");
+}
+
+#[test]
+fn adult_fr() {
+    assert_eq!(
+        run_ok("adult_fr.tn"),
+        "Adulte\nsomme 1..5 = 15\nfactorielle(5) = 120\n"
+    );
+}
+
+#[test]
+fn points_fr() {
+    assert_eq!(run_ok("points_fr.tn"), "p.somme: 7\nq.x: 13 q.somme: 17\n");
+}
+
+#[test]
+fn shapes_fr() {
+    assert_eq!(
+        run_ok("shapes_fr.tn"),
+        "point: 3 4\naire cercle: 75\naire rect: 12\naire rien: 0\nclasser 0: zéro\nclasser 7: plusieurs\n"
+    );
+}
+
+#[test]
+fn trilingue() {
+    assert_eq!(
+        run_ok("trilingue.tn"),
+        "solde: 150\nالمالك: Sara\nlabel: riche\nverdict: ça va\n"
+    );
 }
 
 #[test]

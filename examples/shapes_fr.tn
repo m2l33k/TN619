@@ -1,0 +1,36 @@
+// TN619 — structures, énums et filtrage par motif (surface française)
+structure Point { x: entier, y: entier }
+
+énum Forme {
+    Cercle(entier),
+    Rectangle(entier, entier),
+    Rien,
+}
+
+fonction aire(f: Forme) -> entier {
+    selon f {
+        Cercle(r)       => r * r * 3,
+        Rectangle(l, h) => l * h,
+        Rien            => 0,
+    }
+}
+
+fonction classer(x: entier) -> chaîne {
+    selon x {
+        0 => "zéro",
+        1 => "un",
+        _ => "plusieurs",
+    }
+}
+
+fonction principal() {
+    soit p = Point { x: 3, y: 4 }
+    affiche("point:", p.x, p.y)
+
+    affiche("aire cercle:", aire(Cercle(5)))
+    affiche("aire rect:", aire(Rectangle(3, 4)))
+    affiche("aire rien:", aire(Rien))
+
+    affiche("classer 0:", classer(0))
+    affiche("classer 7:", classer(7))
+}

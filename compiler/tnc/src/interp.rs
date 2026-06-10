@@ -144,13 +144,17 @@ impl Interp {
                 }
             }
         }
-        // Entry point: main / رئيسي
+        // Entry point: main / رئيسي / principal
         let main = self
             .funcs
             .get("main")
             .or_else(|| self.funcs.get("رئيسي"))
+            .or_else(|| self.funcs.get("principal"))
             .cloned()
-            .ok_or_else(|| "no entry point: define `fn main()` or `دالة رئيسي()`".to_string())?;
+            .ok_or_else(|| {
+                "no entry point: define `fn main()`, `دالة رئيسي()`, or `fonction principal()`"
+                    .to_string()
+            })?;
         match self.call(&main, vec![]) {
             Ok(_) | Err(Flow::Return(_)) => Ok(std::mem::take(&mut self.out)),
             Err(Flow::Error(e)) => Err(e),
@@ -179,15 +183,13 @@ impl Interp {
         let saved = std::mem::take(&mut self.scopes);
         self.scopes.push(Scope::new());
         if let Some(sv) = self_val {
-            // Bound under both spellings so EN/AR method bodies both work.
-            self.scopes
-                .last_mut()
-                .unwrap()
-                .insert("self".into(), (sv.clone(), false));
-            self.scopes
-                .last_mut()
-                .unwrap()
-                .insert("الذات".into(), (sv, false));
+            // Bound under all three spellings so EN/AR/FR method bodies work.
+            for name in ["self", "الذات", "soi"] {
+                self.scopes
+                    .last_mut()
+                    .unwrap()
+                    .insert(name.into(), (sv.clone(), false));
+            }
         }
         for (p, a) in f.params.iter().zip(args) {
             self.scopes
