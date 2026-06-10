@@ -243,7 +243,11 @@ fn bad_exhaustive_is_rejected() {
 fn run_src(name: &str, src: &str) -> std::process::Output {
     let path = std::env::temp_dir().join(name);
     std::fs::write(&path, src).unwrap();
-    let out = Command::new(tnc()).arg("run").arg(&path).output().expect("spawn");
+    let out = Command::new(tnc())
+        .arg("run")
+        .arg(&path)
+        .output()
+        .expect("spawn");
     let _ = std::fs::remove_file(&path);
     out
 }
@@ -336,7 +340,10 @@ fn use_after_move_is_rejected() {
         "tn619_clone_ok.tn",
         "fn eat(s: str) { print(s) }\nfn main() { let s = \"hi\" let t = s.clone() eat(t) eat(s) }",
     );
-    assert!(cloned.status.success(), "clone should satisfy the move checker");
+    assert!(
+        cloned.status.success(),
+        "clone should satisfy the move checker"
+    );
 }
 
 // ---- native backend (Cranelift JIT) ----
@@ -374,7 +381,11 @@ fn jit_matches_interpreter() {
 fn jit_rejects_unsupported_constructs() {
     let path = std::env::temp_dir().join("tn619_jit_unsup.tn");
     std::fs::write(&path, "fn main() { let s = \"hello\" print(s) }").unwrap();
-    let out = Command::new(tnc()).arg("jit").arg(&path).output().expect("spawn");
+    let out = Command::new(tnc())
+        .arg("jit")
+        .arg(&path)
+        .output()
+        .expect("spawn");
     let _ = std::fs::remove_file(&path);
     assert!(!out.status.success());
     assert!(String::from_utf8_lossy(&out.stderr).contains("tnc run"));
@@ -386,7 +397,10 @@ fn jit_rejects_unsupported_constructs() {
 fn utf8_bom_is_skipped() {
     let out = run_src("tn619_bom.tn", "\u{FEFF}fn main() { print(\"ok\") }");
     assert!(out.status.success(), "BOM-prefixed source should run");
-    assert_eq!(String::from_utf8_lossy(&out.stdout).replace("\r\n", "\n"), "ok\n");
+    assert_eq!(
+        String::from_utf8_lossy(&out.stdout).replace("\r\n", "\n"),
+        "ok\n"
+    );
 }
 
 // ---- security regression: Trojan Source / bidi control characters ----

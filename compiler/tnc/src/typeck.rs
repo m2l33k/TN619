@@ -222,10 +222,9 @@ impl Checker {
     fn resolve(&self, ty: &TypeExpr) -> Result<Ty, String> {
         Ok(match ty {
             TypeExpr::Array(inner) => Ty::Vec(Box::new(self.resolve(inner)?)),
-            TypeExpr::Result(ok, err) => Ty::Result(
-                Box::new(self.resolve(ok)?),
-                Box::new(self.resolve(err)?),
-            ),
+            TypeExpr::Result(ok, err) => {
+                Ty::Result(Box::new(self.resolve(ok)?), Box::new(self.resolve(err)?))
+            }
             TypeExpr::Name(name) => match name.as_str() {
                 "int" | "عدد" | "entier" => Ty::Int,
                 "f64" | "float" | "عائم" | "flottant" => Ty::Float,
@@ -484,10 +483,7 @@ impl Checker {
                         match base_ty {
                             Ty::Vec(t) => (*t, format!("{}[..]", name)),
                             other => {
-                                return Err(format!(
-                                    "cannot index `{}` of type `{}`",
-                                    name, other
-                                ))
+                                return Err(format!("cannot index `{}` of type `{}`", name, other))
                             }
                         }
                     }
@@ -902,7 +898,10 @@ impl Checker {
                     ));
                 }
                 if self_kind == SelfKind::MutRef {
-                    self.require_mutable_receiver(receiver, &format!("`&mut self` method `{}`", method))?;
+                    self.require_mutable_receiver(
+                        receiver,
+                        &format!("`&mut self` method `{}`", method),
+                    )?;
                 }
                 if self_kind == SelfKind::Value {
                     // A by-value method consumes its receiver.
@@ -918,10 +917,7 @@ impl Checker {
                 let (ok_ty, err_ty) = match it {
                     Ty::Result(t, e) => (*t, *e),
                     other => {
-                        return Err(format!(
-                            "`?` requires a `Result<_, _>`, found `{}`",
-                            other
-                        ))
+                        return Err(format!("`?` requires a `Result<_, _>`, found `{}`", other))
                     }
                 };
                 match &self.cur_ret {
@@ -950,7 +946,8 @@ impl Checker {
         }
         let scrut_ty = self.infer(scrutinee)?;
         // Matching on a value consumes it (bindings may move pieces out).
-        self.mark_move(scrutinee).map_err(|m| with_line(scrutinee.line, m))?;
+        self.mark_move(scrutinee)
+            .map_err(|m| with_line(scrutinee.line, m))?;
         let mut arm_ty: Option<Ty> = None;
         let mut has_wildcard = false;
         let mut covered_variants: HashSet<String> = HashSet::new();
@@ -1258,9 +1255,9 @@ impl Checker {
     fn require_mutable(&self, name: &str) -> Result<Ty, String> {
         match self.lookup_full(name) {
             None => Err(format!("cannot assign to unknown variable `{}`", name)),
-            Some(Binding { mutable: false, .. }) if name == "self" => Err(
-                "cannot mutate `self` here — declare the method with `&mut self`".into(),
-            ),
+            Some(Binding { mutable: false, .. }) if name == "self" => {
+                Err("cannot mutate `self` here — declare the method with `&mut self`".into())
+            }
             Some(Binding { mutable: false, .. }) => Err(format!(
                 "cannot mutate immutable binding `{}` — declare it with `var`/`متغير`/`variable`",
                 name

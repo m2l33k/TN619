@@ -153,11 +153,11 @@ pub fn jit_run(prog: &Program) -> JResult<()> {
             gen.builder.finalize();
         }
 
-        module.define_function(id, &mut ctx).map_err(|e| e.to_string())?;
+        module
+            .define_function(id, &mut ctx)
+            .map_err(|e| e.to_string())?;
     }
-    module
-        .finalize_definitions()
-        .map_err(|e| e.to_string())?;
+    module.finalize_definitions().map_err(|e| e.to_string())?;
 
     // Entry point, in any of the three surface spellings.
     let main = ["main", "رئيسي", "principal"]
@@ -281,10 +281,11 @@ impl FnGen<'_, '_> {
                 self.builder.ins().jump(header, &[]);
                 self.builder.switch_to_block(header);
                 let i = self.builder.use_var(ivar);
-                let c = self
-                    .builder
-                    .ins()
-                    .icmp(cranelift_codegen::ir::condcodes::IntCC::SignedLessThan, i, e);
+                let c = self.builder.ins().icmp(
+                    cranelift_codegen::ir::condcodes::IntCC::SignedLessThan,
+                    i,
+                    e,
+                );
                 self.builder.ins().brif(c, body_b, &[], exit, &[]);
                 self.builder.switch_to_block(body_b);
                 self.builder.seal_block(body_b);
@@ -441,12 +442,7 @@ impl FnGen<'_, '_> {
         }
     }
 
-    fn cmp(
-        &mut self,
-        cc: cranelift_codegen::ir::condcodes::IntCC,
-        l: Value,
-        r: Value,
-    ) -> Value {
+    fn cmp(&mut self, cc: cranelift_codegen::ir::condcodes::IntCC, l: Value, r: Value) -> Value {
         let b = self.builder.ins().icmp(cc, l, r);
         // Comparisons produce I8; widen to our universal I64.
         self.builder.ins().uextend(types::I64, b)

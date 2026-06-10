@@ -267,15 +267,14 @@ impl Interp {
                         self.with_mut_slot(name, |slot| match slot {
                             Value::Array(items) => {
                                 let len = items.len();
-                                let idx = usize::try_from(i)
-                                    .ok()
-                                    .filter(|&u| u < len)
-                                    .ok_or_else(|| {
+                                let idx = usize::try_from(i).ok().filter(|&u| u < len).ok_or_else(
+                                    || {
                                         Flow::Error(format!(
                                             "index {} out of bounds (length {})",
                                             i, len
                                         ))
-                                    })?;
+                                    },
+                                )?;
                                 items[idx] = v;
                                 Ok(())
                             }
@@ -284,7 +283,10 @@ impl Interp {
                     }
                     AssignTarget::Field { name, field } => {
                         self.with_mut_slot(name, |slot| match slot {
-                            Value::Struct { name: sname, fields } => {
+                            Value::Struct {
+                                name: sname,
+                                fields,
+                            } => {
                                 let entry = fields
                                     .iter_mut()
                                     .find(|(k, _)| k == field)
@@ -615,20 +617,16 @@ impl Interp {
                                         items.push(arg);
                                         Ok(())
                                     }
-                                    other => {
-                                        Err(Flow::Error(format!("cannot push to {}", other)))
-                                    }
+                                    other => Err(Flow::Error(format!("cannot push to {}", other))),
                                 })?;
                                 return Ok(Value::Unit);
                             }
                             ArrayMethod::Pop => {
                                 return self.mutate_place(receiver, |slot| match slot {
-                                    Value::Array(items) => items.pop().ok_or_else(|| {
-                                        Flow::Error("pop on an empty array".into())
-                                    }),
-                                    other => {
-                                        Err(Flow::Error(format!("cannot pop from {}", other)))
-                                    }
+                                    Value::Array(items) => items
+                                        .pop()
+                                        .ok_or_else(|| Flow::Error("pop on an empty array".into())),
+                                    other => Err(Flow::Error(format!("cannot pop from {}", other))),
                                 });
                             }
                         }
@@ -902,13 +900,13 @@ impl Interp {
             ExprKind::Ident(name) => self.with_mut_slot(name, f),
             ExprKind::Field { base, field } => match &base.kind {
                 ExprKind::Ident(name) => self.with_mut_slot(name, |slot| match slot {
-                    Value::Struct { name: sname, fields } => {
+                    Value::Struct {
+                        name: sname,
+                        fields,
+                    } => {
                         let entry =
                             fields.iter_mut().find(|(k, _)| k == field).ok_or_else(|| {
-                                Flow::Error(format!(
-                                    "struct `{}` has no field `{}`",
-                                    sname, field
-                                ))
+                                Flow::Error(format!("struct `{}` has no field `{}`", sname, field))
                             })?;
                         f(&mut entry.1)
                     }

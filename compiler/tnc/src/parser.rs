@@ -369,9 +369,9 @@ impl Parser {
                     },
                     _ => {
                         return Err(format!(
-                            "line {}: invalid assignment target (expected `x`, `a[i]`, or `x.field`)",
-                            line
-                        ))
+                        "line {}: invalid assignment target (expected `x`, `a[i]`, or `x.field`)",
+                        line
+                    ))
                     }
                 };
                 self.expect(TokenKind::Assign)?;

@@ -280,7 +280,7 @@ impl<'a> Lexer<'a> {
             '}' => RBrace,
             '[' => LBracket,
             ']' => RBracket,
-            ',' | '،' => Comma, // bilingual comma fold
+            ',' | '،' => Comma,    // bilingual comma fold
             '?' | '؟' => Question, // bilingual question-mark fold (error propagation)
             '&' => Amp,
             '=' => {
