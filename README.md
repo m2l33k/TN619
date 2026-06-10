@@ -22,6 +22,9 @@ surfaces can be **mixed freely in one program** (see `examples/trilingue.tn`).
 - [docs/roadmap/](docs/roadmap/) — **per-phase roadmap** (one file per phase 1–10:
   what's done, what's not, and the forward plan). Start at
   [docs/roadmap/README.md](docs/roadmap/README.md).
+- [docs/roadmap/NEXT-PHASES.md](docs/roadmap/NEXT-PHASES.md) — **what's next
+  (M4+)**: generics/traits, closures, modules, references + borrow checker,
+  backend growth, stdlib, tooling, release.
 - [docs/ROADMAP.md](docs/ROADMAP.md) — consolidated 24-month build plan.
 - [docs/design/05-memory-model.md](docs/design/05-memory-model.md) — ownership, borrowing, and lifetime inference.
 - [docs/design/02-language-features.md](docs/design/02-language-features.md) — numeric tower, string interpolation, closures, async direction.
