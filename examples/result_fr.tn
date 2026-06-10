@@ -1,0 +1,28 @@
+// TN619 — Résultat<T, E> et l'opérateur `?` (surface française)
+fonction division_sûre(a: entier, b: entier) -> Résultat<entier, chaîne> {
+    si b == 0 {
+        retourne Erreur("division par zéro")
+    }
+    Ok(a / b)
+}
+
+// `?` extrait la valeur Ok ou propage l'Erreur à l'appelant.
+fonction moyenne(a: entier, b: entier, d: entier) -> Résultat<entier, chaîne> {
+    soit x = division_sûre(a, d)?
+    soit y = division_sûre(b, d)?
+    Ok((x + y) / 2)
+}
+
+fonction décrire(r: Résultat<entier, chaîne>) -> chaîne {
+    selon r {
+        Ok(v) => "ok: {v}",
+        Erreur(e) => "erreur: {e}",
+    }
+}
+
+fonction principal() {
+    affiche(décrire(division_sûre(10, 2)))
+    affiche(décrire(division_sûre(1, 0)))
+    affiche(décrire(moyenne(10, 20, 5)))
+    affiche(décrire(moyenne(10, 20, 0)))
+}

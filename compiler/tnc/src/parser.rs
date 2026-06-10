@@ -6,7 +6,7 @@
 
 use crate::ast::*;
 use crate::lexer::Lexer;
-use crate::token::{StrPiece, Token, TokenKind};
+use crate::token::{result_ctor, StrPiece, Token, TokenKind};
 
 /// Convert lexer interpolation pieces into AST string parts, re-lexing and
 /// parsing each `{expr}` piece as a standalone expression.
@@ -203,9 +203,24 @@ impl Parser {
         })
     }
 
-    /// A type is a single identifier for the MVP (primitive or user-defined name).
-    fn parse_type(&mut self) -> PResult<String> {
-        self.parse_ident()
+    /// A type: a named type, an array `[T]`, or `Result<T, E>`.
+    fn parse_type(&mut self) -> PResult<TypeExpr> {
+        if self.eat(&TokenKind::LBracket) {
+            let inner = self.parse_type()?;
+            self.expect(TokenKind::RBracket)?;
+            return Ok(TypeExpr::Array(Box::new(inner)));
+        }
+        let name = self.parse_ident()?;
+        // `Result<T, E>` in any surface spelling.
+        if is_result_name(&name) && self.peek() == &TokenKind::Lt {
+            self.advance();
+            let ok = self.parse_type()?;
+            self.expect(TokenKind::Comma)?;
+            let err = self.parse_type()?;
+            self.expect(TokenKind::Gt)?;
+            return Ok(TypeExpr::Result(Box::new(ok), Box::new(err)));
+        }
+        Ok(TypeExpr::Name(name))
     }
 
     fn parse_one_param(&mut self) -> PResult<Param> {
@@ -218,7 +233,7 @@ impl Parser {
     /// Consumes a `self` / `الذات` / `soi` identifier if present.
     fn eat_self(&mut self) -> bool {
         if let TokenKind::Ident(s) = self.peek() {
-            if s == "self" || s == "الذات" || s == "soi" {
+            if is_self_name(s) {
                 self.advance();
                 return true;
             }
@@ -247,10 +262,21 @@ impl Parser {
         let mut params = Vec::new();
         if self.peek() == &TokenKind::Amp {
             self.advance();
+            // `&mut self` / `&var self` / `&متغير الذات` / `&variable soi`.
+            let mut_marker = self.peek() == &TokenKind::Var
+                || matches!(self.peek(), TokenKind::Ident(s) if s == "mut");
+            if mut_marker {
+                self.advance();
+            }
+            let is_mut = mut_marker;
             if !self.eat_self() {
                 return Err(format!("line {}: expected `self` after `&`", self.line()));
             }
-            self_kind = SelfKind::Ref;
+            self_kind = if is_mut {
+                SelfKind::MutRef
+            } else {
+                SelfKind::Ref
+            };
             while self.eat(&TokenKind::Comma) {
                 params.push(self.parse_one_param()?);
             }
@@ -310,13 +336,48 @@ impl Parser {
             TokenKind::While => self.parse_while(),
             TokenKind::For => self.parse_for(),
             TokenKind::Return => self.parse_return(),
-            TokenKind::Ident(_) if self.toks[self.pos + 1].kind == TokenKind::Assign => {
-                let name = self.parse_ident()?;
+            _ => {
+                // Parse a full expression; if `=` follows, reinterpret it as an
+                // assignment target (`x = v`, `a[i] = v`, `p.field = v`).
+                let e = self.parse_expr(0)?;
+                if self.peek() != &TokenKind::Assign {
+                    return Ok(Stmt::Expr(e));
+                }
+                let line = e.line;
+                let target = match e.kind {
+                    ExprKind::Ident(name) => AssignTarget::Var(name),
+                    ExprKind::Index { base, index } => match base.kind {
+                        ExprKind::Ident(name) => AssignTarget::Index {
+                            name,
+                            index: *index,
+                        },
+                        _ => {
+                            return Err(format!(
+                                "line {}: indexed assignment requires a plain variable on the left",
+                                line
+                            ))
+                        }
+                    },
+                    ExprKind::Field { base, field } => match base.kind {
+                        ExprKind::Ident(name) => AssignTarget::Field { name, field },
+                        _ => {
+                            return Err(format!(
+                                "line {}: field assignment requires a plain variable on the left",
+                                line
+                            ))
+                        }
+                    },
+                    _ => {
+                        return Err(format!(
+                            "line {}: invalid assignment target (expected `x`, `a[i]`, or `x.field`)",
+                            line
+                        ))
+                    }
+                };
                 self.expect(TokenKind::Assign)?;
                 let value = self.parse_expr(0)?;
-                Ok(Stmt::Assign { name, value })
+                Ok(Stmt::Assign { target, value })
             }
-            _ => Ok(Stmt::Expr(self.parse_expr(0)?)),
         }
     }
 
@@ -349,16 +410,25 @@ impl Parser {
         self.expect(TokenKind::For)?;
         let var = self.parse_ident()?;
         self.expect(TokenKind::In)?;
-        let start = self.no_struct(|p| p.parse_expr(0))?;
-        self.expect(TokenKind::DotDot)?;
-        let end = self.no_struct(|p| p.parse_expr(0))?;
-        let body = self.parse_block()?;
-        Ok(Stmt::For {
-            var,
-            start,
-            end,
-            body,
-        })
+        let first = self.no_struct(|p| p.parse_expr(0))?;
+        // `for i in a..b` is a range; `for x in arr` iterates an array.
+        if self.eat(&TokenKind::DotDot) {
+            let end = self.no_struct(|p| p.parse_expr(0))?;
+            let body = self.parse_block()?;
+            Ok(Stmt::For {
+                var,
+                start: first,
+                end,
+                body,
+            })
+        } else {
+            let body = self.parse_block()?;
+            Ok(Stmt::ForEach {
+                var,
+                iter: first,
+                body,
+            })
+        }
     }
 
     fn parse_return(&mut self) -> PResult<Stmt> {
@@ -454,6 +524,25 @@ impl Parser {
                         line: l,
                     };
                 }
+                TokenKind::LBracket => {
+                    self.advance();
+                    let index = self.with_struct(|p| p.parse_expr(0))?;
+                    self.expect(TokenKind::RBracket)?;
+                    e = Expr {
+                        kind: ExprKind::Index {
+                            base: Box::new(e),
+                            index: Box::new(index),
+                        },
+                        line: l,
+                    };
+                }
+                TokenKind::Question => {
+                    self.advance();
+                    e = Expr {
+                        kind: ExprKind::Try(Box::new(e)),
+                        line: l,
+                    };
+                }
                 _ => break,
             }
         }
@@ -510,10 +599,35 @@ impl Parser {
                 self.expect(TokenKind::RParen)?;
                 Ok(e.kind)
             }
+            TokenKind::LBracket => {
+                // Array literal: `[a, b, c]` (possibly empty).
+                self.advance();
+                let mut elems = Vec::new();
+                if self.peek() != &TokenKind::RBracket {
+                    self.with_struct(|p| {
+                        loop {
+                            elems.push(p.parse_expr(0)?);
+                            if !p.eat(&TokenKind::Comma) {
+                                break;
+                            }
+                        }
+                        Ok(())
+                    })?;
+                }
+                self.expect(TokenKind::RBracket)?;
+                Ok(ExprKind::ArrayLit(elems))
+            }
             TokenKind::If => Ok(self.parse_if()?.kind),
             TokenKind::Match => self.parse_match(),
             TokenKind::Ident(name) => {
                 self.advance();
+                // All `self` spellings canonicalize to "self" here, once, so
+                // every later stage tracks a single binding.
+                let name = if is_self_name(&name) {
+                    "self".to_string()
+                } else {
+                    name
+                };
                 if self.peek() == &TokenKind::PathSep {
                     // Path: Type::member  or  Type::member(args)
                     // (enum variant OR associated function — resolved later)
@@ -531,8 +645,10 @@ impl Parser {
                     })
                 } else if self.peek() == &TokenKind::LParen {
                     // Function call OR bare tuple-variant construction (resolved at runtime).
+                    // `Ok`/`Err` spellings canonicalize here, once, for everyone downstream.
+                    let callee = result_ctor(&name).map(String::from).unwrap_or(name);
                     let args = self.parse_call_args()?;
-                    Ok(ExprKind::Call { callee: name, args })
+                    Ok(ExprKind::Call { callee, args })
                 } else if self.allow_struct_lit && self.peek() == &TokenKind::LBrace {
                     self.parse_struct_lit(name)
                 } else {
@@ -685,6 +801,8 @@ impl Parser {
                     })
                 } else if self.peek() == &TokenKind::LParen {
                     let subs = self.parse_pattern_subs()?;
+                    // `Ok(x)` / `نجاح(x)` / `Erreur(e)` patterns canonicalize too.
+                    let name = result_ctor(&name).map(String::from).unwrap_or(name);
                     Ok(Pattern::Variant {
                         enum_name: None,
                         name,
@@ -718,6 +836,16 @@ impl Parser {
         }
         Ok(subs)
     }
+}
+
+/// All surface spellings of the builtin `Result` type name.
+pub fn is_result_name(name: &str) -> bool {
+    matches!(name, "Result" | "نتيجة" | "Résultat" | "Resultat")
+}
+
+/// All surface spellings of `self` (reserved inside method bodies).
+fn is_self_name(name: &str) -> bool {
+    matches!(name, "self" | "الذات" | "soi")
 }
 
 fn infix_bp(op: BinOp) -> (u8, u8) {

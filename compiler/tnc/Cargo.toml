@@ -7,6 +7,11 @@ description = "TN619 bootstrap compiler (MVP: bilingual lexer + parser + tree-wa
 # Deliberately ZERO dependencies for the MVP so `cargo build` always works offline.
 # Unicode NFC normalization + LLVM/Cranelift codegen arrive in later iterations.
 [dependencies]
+cranelift-codegen = "0.132.1"
+cranelift-frontend = "0.132.1"
+cranelift-jit = "0.132.1"
+cranelift-module = "0.132.1"
+cranelift-native = "0.132.1"
 
 [[bin]]
 name = "tnc"

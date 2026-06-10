@@ -5,7 +5,7 @@
 //! lexer/parser/AST front-end.
 
 use crate::ast::*;
-use crate::token::is_print_builtin;
+use crate::token::{array_method, is_clone_method, is_print_builtin, ArrayMethod};
 use std::collections::HashMap;
 use std::fmt;
 
@@ -25,6 +25,7 @@ pub enum Value {
         variant: String,
         data: Vec<Value>,
     },
+    Array(Vec<Value>),
 }
 
 impl fmt::Display for Value {
@@ -66,6 +67,16 @@ impl fmt::Display for Value {
                     write!(f, ")")?;
                 }
                 Ok(())
+            }
+            Value::Array(items) => {
+                write!(f, "[")?;
+                for (i, v) in items.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}", v)?;
+                }
+                write!(f, "]")
             }
         }
     }
@@ -162,15 +173,19 @@ impl Interp {
     }
 
     fn call(&mut self, f: &FnDecl, args: Vec<Value>) -> EResult<Value> {
-        self.call_with_self(f, None, args)
+        self.call_with_self(f, None, false, args).map(|(v, _)| v)
     }
 
+    /// Run `f` in a fresh frame. For `&mut self` calls (`self_mutable`), the
+    /// final value of the `self` slot is returned alongside the result so the
+    /// caller can write it back into the receiver variable.
     fn call_with_self(
         &mut self,
         f: &FnDecl,
         self_val: Option<Value>,
+        self_mutable: bool,
         args: Vec<Value>,
-    ) -> EResult<Value> {
+    ) -> EResult<(Value, Option<Value>)> {
         if args.len() != f.params.len() {
             return Err(Flow::Error(format!(
                 "function `{}` expects {} args, got {}",
@@ -183,13 +198,11 @@ impl Interp {
         let saved = std::mem::take(&mut self.scopes);
         self.scopes.push(Scope::new());
         if let Some(sv) = self_val {
-            // Bound under all three spellings so EN/AR/FR method bodies work.
-            for name in ["self", "الذات", "soi"] {
-                self.scopes
-                    .last_mut()
-                    .unwrap()
-                    .insert(name.into(), (sv.clone(), false));
-            }
+            // The parser canonicalized all `self` spellings to "self".
+            self.scopes
+                .last_mut()
+                .unwrap()
+                .insert("self".into(), (sv, self_mutable));
         }
         for (p, a) in f.params.iter().zip(args) {
             self.scopes
@@ -202,8 +215,16 @@ impl Interp {
             Err(Flow::Return(v)) => Ok(v),
             Err(e) => Err(e),
         };
+        let final_self = if self_mutable {
+            self.scopes
+                .first()
+                .and_then(|s| s.get("self"))
+                .map(|(v, _)| v.clone())
+        } else {
+            None
+        };
         self.scopes = saved;
-        result
+        result.map(|v| (v, final_self))
     }
 
     fn eval_block(&mut self, b: &Block) -> EResult<Value> {
@@ -237,9 +258,52 @@ impl Interp {
                     .insert(name.clone(), (v, *mutable));
                 Ok(Value::Unit)
             }
-            Stmt::Assign { name, value } => {
+            Stmt::Assign { target, value } => {
                 let v = self.eval_expr(value)?;
-                self.assign(name, v)?;
+                match target {
+                    AssignTarget::Var(name) => self.assign(name, v)?,
+                    AssignTarget::Index { name, index } => {
+                        let i = self.as_int(index)?;
+                        self.with_mut_slot(name, |slot| match slot {
+                            Value::Array(items) => {
+                                let len = items.len();
+                                let idx = usize::try_from(i)
+                                    .ok()
+                                    .filter(|&u| u < len)
+                                    .ok_or_else(|| {
+                                        Flow::Error(format!(
+                                            "index {} out of bounds (length {})",
+                                            i, len
+                                        ))
+                                    })?;
+                                items[idx] = v;
+                                Ok(())
+                            }
+                            other => Err(Flow::Error(format!("cannot index `{}`", other))),
+                        })?;
+                    }
+                    AssignTarget::Field { name, field } => {
+                        self.with_mut_slot(name, |slot| match slot {
+                            Value::Struct { name: sname, fields } => {
+                                let entry = fields
+                                    .iter_mut()
+                                    .find(|(k, _)| k == field)
+                                    .ok_or_else(|| {
+                                        Flow::Error(format!(
+                                            "struct `{}` has no field `{}`",
+                                            sname, field
+                                        ))
+                                    })?;
+                                entry.1 = v;
+                                Ok(())
+                            }
+                            other => Err(Flow::Error(format!(
+                                "cannot assign to field `{}` on {}",
+                                field, other
+                            ))),
+                        })?;
+                    }
+                }
                 Ok(Value::Unit)
             }
             Stmt::While { cond, body } => {
@@ -267,6 +331,28 @@ impl Interp {
                     self.scopes.pop();
                     r?;
                     i += 1;
+                }
+                Ok(Value::Unit)
+            }
+            Stmt::ForEach { var, iter, body } => {
+                let items = match self.eval_expr(iter)? {
+                    Value::Array(items) => items,
+                    other => {
+                        return Err(Flow::Error(format!(
+                            "`for .. in` requires an array, got {}",
+                            other
+                        )))
+                    }
+                };
+                for item in items {
+                    self.scopes.push(Scope::new());
+                    self.scopes
+                        .last_mut()
+                        .unwrap()
+                        .insert(var.clone(), (item, false));
+                    let r = self.eval_block(body);
+                    self.scopes.pop();
+                    r?;
                 }
                 Ok(Value::Unit)
             }
@@ -344,6 +430,14 @@ impl Interp {
                     self.out.push('\n');
                     return Ok(Value::Unit);
                 }
+                // Builtin `Result` constructors (canonicalized by the parser).
+                if callee == "Ok" || callee == "Err" {
+                    return Ok(Value::Enum {
+                        enum_name: "Result".into(),
+                        variant: callee.clone(),
+                        data: vals,
+                    });
+                }
                 // Bare tuple-variant construction, e.g. `Some(x)` / `Circle(r)`.
                 if let Some((enum_name, arity)) = self.variants.get(callee).cloned() {
                     if vals.len() != arity {
@@ -377,9 +471,34 @@ impl Interp {
                 }
             }
             ExprKind::Float(x) => Ok(Value::Float(*x)),
+            ExprKind::ArrayLit(elems) => {
+                let mut items = Vec::with_capacity(elems.len());
+                for e in elems {
+                    items.push(self.eval_expr(e)?);
+                }
+                Ok(Value::Array(items))
+            }
+            ExprKind::Index { base, index } => {
+                let b = self.eval_expr(base)?;
+                let i = self.as_int(index)?;
+                match b {
+                    Value::Array(items) => usize::try_from(i)
+                        .ok()
+                        .and_then(|u| items.get(u).cloned())
+                        .ok_or_else(|| {
+                            Flow::Error(format!(
+                                "index {} out of bounds (length {})",
+                                i,
+                                items.len()
+                            ))
+                        }),
+                    other => Err(Flow::Error(format!("cannot index {}", other))),
+                }
+            }
             ExprKind::Cast { expr, ty } => {
                 let v = self.eval_expr(expr)?;
-                let to_float = matches!(ty.as_str(), "f64" | "float" | "عائم");
+                let to_float = matches!(ty, TypeExpr::Name(n)
+                    if matches!(n.as_str(), "f64" | "float" | "عائم" | "flottant"));
                 match v {
                     Value::Int(n) if to_float => Ok(Value::Float(n as f64)),
                     Value::Int(n) => Ok(Value::Int(n)),
@@ -465,7 +584,9 @@ impl Interp {
                     for a in args {
                         vals.push(self.eval_expr(a)?);
                     }
-                    return self.call_with_self(&m.func, None, vals);
+                    return self
+                        .call_with_self(&m.func, None, false, vals)
+                        .map(|(v, _)| v);
                 }
                 Err(Flow::Error(format!("no `{}::{}`", ty, member)))
             }
@@ -474,7 +595,56 @@ impl Interp {
                 method,
                 args,
             } => {
+                // Builtin array methods. `push`/`pop` mutate the receiver
+                // variable in place (the type checker already required a plain
+                // mutable variable).
+                if let Some(am) = array_method(method) {
+                    let is_array_recv = matches!(self.eval_expr(receiver)?, Value::Array(_));
+                    if is_array_recv {
+                        match am {
+                            ArrayMethod::Len => {
+                                if let Value::Array(items) = self.eval_expr(receiver)? {
+                                    return Ok(Value::Int(items.len() as i64));
+                                }
+                                unreachable!();
+                            }
+                            ArrayMethod::Push => {
+                                let arg = self.eval_expr(&args[0])?;
+                                self.mutate_place(receiver, |slot| match slot {
+                                    Value::Array(items) => {
+                                        items.push(arg);
+                                        Ok(())
+                                    }
+                                    other => {
+                                        Err(Flow::Error(format!("cannot push to {}", other)))
+                                    }
+                                })?;
+                                return Ok(Value::Unit);
+                            }
+                            ArrayMethod::Pop => {
+                                return self.mutate_place(receiver, |slot| match slot {
+                                    Value::Array(items) => items.pop().ok_or_else(|| {
+                                        Flow::Error("pop on an empty array".into())
+                                    }),
+                                    other => {
+                                        Err(Flow::Error(format!("cannot pop from {}", other)))
+                                    }
+                                });
+                            }
+                        }
+                    }
+                }
                 let recv = self.eval_expr(receiver)?;
+                // Builtin `.clone()` (value semantics already deep-copy; a
+                // user-defined `clone` method takes priority).
+                if is_clone_method(method) && args.is_empty() {
+                    let has_user_clone = type_name_of(&recv)
+                        .map(|t| self.methods.contains_key(&(t, method.clone())))
+                        .unwrap_or(false);
+                    if !has_user_clone {
+                        return Ok(recv);
+                    }
+                }
                 let tyname = type_name_of(&recv)
                     .ok_or_else(|| Flow::Error(format!("type `{}` has no methods", recv)))?;
                 let m = self
@@ -494,7 +664,40 @@ impl Interp {
                 for a in args {
                     vals.push(self.eval_expr(a)?);
                 }
-                self.call_with_self(&m.func, Some(recv), vals)
+                if m.self_kind == SelfKind::MutRef {
+                    // Mutating call: run with a mutable `self`, then write the
+                    // final self back into the receiver place (the type
+                    // checker guaranteed it is a mutable variable or a field
+                    // of one).
+                    let (v, final_self) = self.call_with_self(&m.func, Some(recv), true, vals)?;
+                    if let Some(fs) = final_self {
+                        self.mutate_place(receiver, |slot| {
+                            *slot = fs;
+                            Ok(())
+                        })?;
+                    }
+                    return Ok(v);
+                }
+                self.call_with_self(&m.func, Some(recv), false, vals)
+                    .map(|(v, _)| v)
+            }
+            ExprKind::Try(inner) => {
+                let v = self.eval_expr(inner)?;
+                match v {
+                    Value::Enum {
+                        ref enum_name,
+                        ref variant,
+                        ref data,
+                    } if enum_name == "Result" => {
+                        if variant == "Ok" {
+                            Ok(data[0].clone())
+                        } else {
+                            // Propagate the whole Err to the caller.
+                            Err(Flow::Return(v.clone()))
+                        }
+                    }
+                    other => Err(Flow::Error(format!("`?` requires a Result, got {}", other))),
+                }
             }
             ExprKind::Match { scrutinee, arms } => {
                 let val = self.eval_expr(scrutinee)?;
@@ -636,6 +839,15 @@ impl Interp {
             }
             (Value::Str(a), Value::Str(b)) => a.cmp(b),
             (Value::Bool(a), Value::Bool(b)) => a.cmp(b),
+            // Arrays support equality only (the type checker restricts
+            // ordering to numbers and strings); report equal/unequal.
+            (Value::Array(a), Value::Array(b)) => {
+                let eq = a.len() == b.len()
+                    && a.iter()
+                        .zip(b.iter())
+                        .all(|(x, y)| matches!(self.compare(x, y), Ok(0)));
+                return Ok(if eq { 0 } else { 1 });
+            }
             (l, r) => return Err(Flow::Error(format!("cannot compare {} and {}", l, r))),
         };
         Ok(match c {
@@ -672,18 +884,68 @@ impl Interp {
     }
 
     fn assign(&mut self, name: &str, v: Value) -> EResult<()> {
+        self.with_mut_slot(name, |slot| {
+            *slot = v;
+            Ok(())
+        })
+    }
+
+    /// Run `f` on the value slot a place-expression names: a variable, or a
+    /// single field projection of one (`x` or `x.field`). Used by `push`,
+    /// `pop`, and `&mut self` write-back.
+    fn mutate_place<T>(
+        &mut self,
+        place: &Expr,
+        f: impl FnOnce(&mut Value) -> EResult<T>,
+    ) -> EResult<T> {
+        match &place.kind {
+            ExprKind::Ident(name) => self.with_mut_slot(name, f),
+            ExprKind::Field { base, field } => match &base.kind {
+                ExprKind::Ident(name) => self.with_mut_slot(name, |slot| match slot {
+                    Value::Struct { name: sname, fields } => {
+                        let entry =
+                            fields.iter_mut().find(|(k, _)| k == field).ok_or_else(|| {
+                                Flow::Error(format!(
+                                    "struct `{}` has no field `{}`",
+                                    sname, field
+                                ))
+                            })?;
+                        f(&mut entry.1)
+                    }
+                    other => Err(Flow::Error(format!(
+                        "cannot access field `{}` on {}",
+                        field, other
+                    ))),
+                }),
+                _ => Err(Flow::Error(
+                    "mutation requires a variable or a field of one".into(),
+                )),
+            },
+            _ => Err(Flow::Error(
+                "mutation requires a variable or a field of one".into(),
+            )),
+        }
+    }
+
+    /// Find the named binding (innermost scope wins), require it to be
+    /// mutable, and run `f` directly on its value slot — the single path for
+    /// every in-place mutation (`=`, `a[i] =`, `x.f =`, `push`, `pop`).
+    fn with_mut_slot<T>(
+        &mut self,
+        name: &str,
+        f: impl FnOnce(&mut Value) -> EResult<T>,
+    ) -> EResult<T> {
         for scope in self.scopes.iter_mut().rev() {
             if let Some((slot, mutable)) = scope.get_mut(name) {
                 if !*mutable {
                     return Err(Flow::Error(format!(
-                        "cannot assign to immutable binding `{}` (use `var`/`متغير`)",
+                        "cannot mutate immutable binding `{}` (use `var`/`متغير`/`variable`)",
                         name
                     )));
                 }
-                *slot = v;
-                return Ok(());
+                return f(slot);
             }
         }
-        Err(Flow::Error(format!("cannot find `{}` to assign", name)))
+        Err(Flow::Error(format!("cannot find `{}` to mutate", name)))
     }
 }

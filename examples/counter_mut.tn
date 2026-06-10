@@ -1,0 +1,36 @@
+// TN619 — &mut self methods: in-place mutation, three surfaces in one program.
+struct Counter { count: int, log: [str] }
+
+impl Counter {
+    fn new() -> Counter {
+        Counter { count: 0, log: [] }
+    }
+    // English: `&mut self`
+    fn bump(&mut self, by: int) {
+        self.count = self.count + by
+    }
+    // French: `&variable soi` — same SelfKind::MutRef.
+    fonction étiqueter(&variable soi, note: chaîne) {
+        soi.log.push(note)
+    }
+    // Arabic: `&متغير الذات` reading the mutated state.
+    دالة قيمة(&الذات) -> عدد {
+        الذات.count
+    }
+}
+
+fn main() {
+    var c = Counter::new()
+    c.bump(5)
+    c.bump(7)
+    c.étiqueter("after twelve")
+    print("count:", c.قيمة())
+    print("log:", c.log)
+
+    // Field + index assignment on mutable bindings:
+    c.count = 100
+    print("set directly:", c.count)
+    var xs = [1, 2, 3]
+    xs[0] = 9
+    print("xs:", xs)
+}

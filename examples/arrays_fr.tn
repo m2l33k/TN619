@@ -1,0 +1,21 @@
+// TN619 — tableaux : littéraux, indexation, mutation, itération (surface française)
+fonction somme(xs: [entier]) -> entier {
+    variable total = 0
+    pour x dans xs {
+        total = total + x
+    }
+    total
+}
+
+fonction principal() {
+    soit nombres = [10, 20, 30]
+    affiche("premier:", nombres[0])
+    affiche("longueur:", nombres.longueur())
+    affiche("somme:", somme(nombres))
+
+    variable pile = [1, 2]
+    pile.ajoute(3)
+    affiche("après ajout:", pile)
+    soit haut = pile.retire()
+    affiche("retiré:", haut, "maintenant:", pile)
+}

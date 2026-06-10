@@ -53,6 +53,8 @@ pub enum TokenKind {
     RParen,
     LBrace,
     RBrace,
+    LBracket, // [  (array literals, array types, indexing)
+    RBracket, // ]
     Comma,    // ,  /  ، (U+060C)
     DotDot,   // .. (exclusive range, used in `for`)
     Dot,      // .  (field access)
@@ -61,6 +63,7 @@ pub enum TokenKind {
     FatArrow, // => (match arms)
     Arrow,    // -> (function return type)
     Amp,      // &  (shared reference, as in &self)
+    Question, // ?  / ؟ (U+061F) — error propagation
 
     Eof,
 }
@@ -113,4 +116,37 @@ pub fn keyword(word: &str) -> Option<TokenKind> {
 /// all spellings resolve to the same builtin in the interpreter.
 pub fn is_print_builtin(name: &str) -> bool {
     name == "print" || name == "اطبع" || name == "affiche"
+}
+
+/// Builtin array methods — the trilingual spellings map to one canonical op,
+/// same mechanism as `keyword()`.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ArrayMethod {
+    Len,
+    Push,
+    Pop,
+}
+
+pub fn array_method(name: &str) -> Option<ArrayMethod> {
+    Some(match name {
+        "len" | "طول" | "longueur" => ArrayMethod::Len,
+        "push" | "أضف" | "ajoute" => ArrayMethod::Push,
+        "pop" | "اسحب" | "retire" => ArrayMethod::Pop,
+        _ => return None,
+    })
+}
+
+/// `.clone()` — the explicit deep-copy escape hatch of the ownership model.
+pub fn is_clone_method(name: &str) -> bool {
+    matches!(name, "clone" | "انسخ" | "cloner")
+}
+
+/// Builtin `Result` constructors. All surface spellings canonicalize to
+/// `"Ok"` / `"Err"` at parse time, so the checker and interpreter see one name.
+pub fn result_ctor(name: &str) -> Option<&'static str> {
+    match name {
+        "Ok" | "نجاح" => Some("Ok"),
+        "Err" | "فشل" | "Erreur" => Some("Err"),
+        _ => None,
+    }
 }

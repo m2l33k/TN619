@@ -1,8 +1,20 @@
-//! The Abstract Syntax Tree — language-neutral (no trace of EN vs AR remains).
+//! The Abstract Syntax Tree — language-neutral (no trace of EN/AR/FR remains).
 
 #[derive(Debug, Clone)]
 pub struct Program {
     pub items: Vec<Item>,
+}
+
+/// A type as written in source. Structured (not a bare string) so composite
+/// types like `[int]` and `Result<int, str>` nest.
+#[derive(Debug, Clone, PartialEq)]
+pub enum TypeExpr {
+    /// A named type: primitive (`int`/`عدد`/`entier`) or user-defined.
+    Name(String),
+    /// `[T]` — a growable array of `T`.
+    Array(Box<TypeExpr>),
+    /// `Result<T, E>` (any surface spelling of `Result`).
+    Result(Box<TypeExpr>, Box<TypeExpr>),
 }
 
 #[derive(Debug, Clone)]
@@ -31,16 +43,18 @@ pub enum SelfKind {
     None,
     /// `self` by value (consuming).
     Value,
-    /// `&self` shared/read-only borrow. (`&mut self` is deferred until the
-    /// reference model lands; `&self` is sound under value semantics.)
+    /// `&self` shared/read-only borrow.
     Ref,
+    /// `&mut self` — the method mutates the receiver in place; callable only
+    /// on a mutable binding.
+    MutRef,
 }
 
 #[derive(Debug, Clone)]
 pub struct StructDecl {
     pub name: String,
-    /// (field name, type name) pairs.
-    pub fields: Vec<(String, String)>,
+    /// (field name, field type) pairs.
+    pub fields: Vec<(String, TypeExpr)>,
 }
 
 #[derive(Debug, Clone)]
@@ -52,23 +66,23 @@ pub struct EnumDecl {
 #[derive(Debug, Clone)]
 pub struct VariantDecl {
     pub name: String,
-    /// Payload type names (empty = unit variant `Red`; `["int"]` = `Circle(int)`).
-    pub payloads: Vec<String>,
+    /// Payload types (empty = unit variant `Red`; `[int]` = `Circle(int)`).
+    pub payloads: Vec<TypeExpr>,
 }
 
 #[derive(Debug, Clone)]
 pub struct FnDecl {
     pub name: String,
     pub params: Vec<Param>,
-    /// Declared return type name; `None` means unit `()`.
-    pub ret: Option<String>,
+    /// Declared return type; `None` means unit `()`.
+    pub ret: Option<TypeExpr>,
     pub body: Block,
 }
 
 #[derive(Debug, Clone)]
 pub struct Param {
     pub name: String,
-    pub ty: String,
+    pub ty: TypeExpr,
 }
 
 #[derive(Debug, Clone)]
@@ -83,25 +97,43 @@ pub enum Stmt {
     Let {
         name: String,
         mutable: bool,
-        ty_ann: Option<String>,
+        ty_ann: Option<TypeExpr>,
         init: Expr,
     },
     Assign {
-        name: String,
+        target: AssignTarget,
         value: Expr,
     },
     While {
         cond: Expr,
         body: Block,
     },
+    /// `for i in a..b` — integer range iteration.
     For {
         var: String,
         start: Expr,
         end: Expr,
         body: Block,
     },
+    /// `for x in arr` — array element iteration.
+    ForEach {
+        var: String,
+        iter: Expr,
+        body: Block,
+    },
     Return(Option<Expr>),
     Expr(Expr),
+}
+
+/// The left side of an assignment: a variable, an indexed element, or a field.
+#[derive(Debug, Clone)]
+pub enum AssignTarget {
+    /// `x = v`
+    Var(String),
+    /// `a[i] = v`
+    Index { name: String, index: Expr },
+    /// `p.field = v` (incl. `self.field` inside `&mut self` methods)
+    Field { name: String, field: String },
 }
 
 /// An expression plus its source line, so diagnostics can point at it.
@@ -118,7 +150,7 @@ pub enum ExprKind {
     /// `expr as Type` numeric cast.
     Cast {
         expr: Box<Expr>,
-        ty: String,
+        ty: TypeExpr,
     },
     Str(String),
     /// Interpolated string: `"hi {name}"` → [Lit("hi "), Expr(name)].
@@ -175,6 +207,15 @@ pub enum ExprKind {
         scrutinee: Box<Expr>,
         arms: Vec<MatchArm>,
     },
+    /// `[a, b, c]` — array literal.
+    ArrayLit(Vec<Expr>),
+    /// `base[index]` — array element access.
+    Index {
+        base: Box<Expr>,
+        index: Box<Expr>,
+    },
+    /// `expr?` — unwrap `Ok`, or propagate `Err` to the caller.
+    Try(Box<Expr>),
 }
 
 #[derive(Debug, Clone)]

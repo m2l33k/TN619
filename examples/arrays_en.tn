@@ -1,0 +1,30 @@
+// TN619 — arrays: literals, indexing, mutation, iteration (English surface)
+fn sum(xs: [int]) -> int {
+    var total = 0
+    for x in xs {
+        total = total + x
+    }
+    total
+}
+
+fn main() {
+    let nums = [10, 20, 30]
+    print("first:", nums[0])
+    print("len:", nums.len())
+    print("sum:", sum(nums))
+
+    var stack = [1, 2]
+    stack.push(3)
+    print("after push:", stack)
+    let top = stack.pop()
+    print("popped:", top, "now:", stack)
+
+    var grades: [str] = []
+    grades.push("A")
+    grades.push("B")
+    grades[1] = "B+"
+    print("grades:", grades)
+
+    let eq = [1, 2] == [1, 2]
+    print("arrays equal:", eq)
+}

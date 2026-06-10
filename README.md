@@ -27,25 +27,35 @@ surfaces can be **mixed freely in one program** (see `examples/trilingue.tn`).
 - [docs/design/02-language-features.md](docs/design/02-language-features.md) — numeric tower, string interpolation, closures, async direction.
 - [docs/design/positioning.md](docs/design/positioning.md) — brand, competitive positioning, target segments.
 
-## Status: MVP (M0)
+## Status: M3 (arrays, Result/`?`, `&mut self`, ownership, native JIT)
 
-The bootstrap compiler `tnc` is a **tree-walking interpreter** (LLVM/Cranelift codegen
-comes later). It currently supports: variables (`let`/`var`), arithmetic, functions,
-`print`, `if`/`else` (as an expression), `while`, `for ... in a..b`, recursion,
-**structs**, **enums** (unit + tuple variants), **pattern matching** (`match` with
-literal/binding/wildcard/variant patterns), field access, **methods & associated
-functions** (`impl` blocks with `self`/`&self`), and
-**trilingual keywords + Arabic-Indic / Persian digits** — in English, Arabic,
-French, or mixed source.
+The bootstrap compiler `tnc` runs programs through a **tree-walking interpreter**
+(the reference backend) and can compile the int/bool subset to **native machine
+code** via a Cranelift JIT (`tnc jit`). The language currently supports: variables
+(`let`/`var`), arithmetic, functions, `print`, `if`/`else` (as an expression),
+`while`, `for i in a..b`, `for x in arr`, recursion, **arrays** (`[T]` with
+literals, indexing, `len`/`push`/`pop`), **structs**, **enums** (unit + tuple
+variants), **`Result<T, E>` + the `?` operator** (with `؟` as its Arabic
+spelling), **pattern matching** (`match` with literal/binding/wildcard/variant
+patterns, incl. `Ok`/`Err`), field access, **methods & associated functions**
+(`impl` blocks with `self`/`&self`/**`&mut self`**, with in-place mutation and
+write-back), and **trilingual keywords + Arabic-Indic / Persian digits** — in
+English, Arabic, French, or mixed source.
 
 A **static type checker** runs before execution: it infers `let` types, checks function
-signatures / struct fields / enum payloads against explicit annotations, and performs
+signatures / struct fields / enum payloads against explicit annotations, performs
 **compile-time `match` exhaustiveness checking** (a missing enum variant is a compile
-error, with the missing variants named).
+error, with the missing variants named), enforces **compile-time mutability** (`var`
+vs `let`, `&mut self` vs `&self`), and runs an **ownership move checker**: non-Copy
+values (str, structs, enums, arrays, Result) move on `let`-init, argument passing,
+constructor payloads, `match`, and by-value method calls; use-after-move, moves
+inside loops, and moving `self` out of a borrowed method are compile errors.
+`.clone()` / `انسخ()` / `.cloner()` is the explicit copy.
 
 Secure-by-default touches already present: immutable bindings by default, no truthiness
-(conditions must be `bool`), **checked integer arithmetic** (overflow is an error), and
-**Trojan-Source defense** (bidirectional control characters are rejected in source).
+(conditions must be `bool`), **checked integer arithmetic** (overflow is an error in
+the interpreter), **bounds-checked array indexing**, and **Trojan-Source defense**
+(bidirectional control characters are rejected in source; UTF-8 BOM is tolerated).
 
 Primitive type names: `int`/`عدد`/`entier`, `bool`/`منطقي`/`booléen`,
 `str`/`نص`/`chaîne`, `float`/`عائم`/`flottant`. Function parameters and return
@@ -67,9 +77,16 @@ French keywords with accents also accept accent-stripped spellings
 
 Entry point: `fn main()` / `دالة رئيسي()` / `fonction principal()`.
 
+Builtin types & methods: arrays `[T]` with `len`/`طول`/`longueur`,
+`push`/`أضف`/`ajoute`, `pop`/`اسحب`/`retire`; `Result<T, E>` /
+`نتيجة<ق، خ>` / `Résultat<T, E>` with constructors `Ok`/`نجاح` and
+`Err`/`فشل`/`Erreur`, propagated by `?`/`؟`; `clone`/`انسخ`/`cloner` on any
+value.
+
 ## Build & run
 
-Requires Rust (stable). No other dependencies.
+Requires Rust (stable). The interpreter and playground are dependency-free;
+`tnc jit` (native codegen) uses Cranelift.
 
 ```sh
 cargo build
@@ -81,6 +98,11 @@ cargo run -- run examples/polyglot.tn      # English + Arabic combined in ONE pr
 cargo run -- run examples/trilingue.tn     # English + Arabic + French in ONE program
 cargo run -- run examples/shapes_fr.tn     # structs + énums + selon (French)
 cargo run -- run examples/points_fr.tn     # méthodes + fonctions associées (French)
+cargo run -- run examples/arrays_en.tn     # arrays: indexing, push/pop, iteration
+cargo run -- run examples/result_en.tn     # Result<T, E> + the ? operator
+cargo run -- run examples/counter_mut.tn   # &mut self: in-place mutation (3 surfaces)
+cargo run -- run examples/ownership.tn     # moves + .clone()
+cargo run -- jit examples/jit_fib.tn       # NATIVE machine code via Cranelift
 cargo run -- run examples/interp_en.tn     # string interpolation (English)
 cargo run -- run examples/interp_ar.tn     # string interpolation (Arabic)
 cargo run -- run examples/floats_en.tn     # f64 + numeric casts (English)
@@ -107,8 +129,9 @@ TN619/
 │       ├── lexer.rs        # trilingual lexer (Arabic digit folding, bilingual comma)
 │       ├── ast.rs          # language-neutral AST
 │       ├── parser.rs       # recursive descent + Pratt
-│       ├── typeck.rs       # static type checker + match exhaustiveness
-│       ├── interp.rs       # tree-walking interpreter (temporary backend)
+│       ├── typeck.rs       # type checker + exhaustiveness + mutability + move checker
+│       ├── interp.rs       # tree-walking interpreter (reference backend)
+│       ├── jit.rs          # Cranelift JIT (native codegen, int/bool subset)
 │       └── main.rs         # `tnc` CLI
 └── examples/               # trilingual sample programs
 ```
@@ -117,11 +140,12 @@ TN619/
 
 - Unicode NFC normalization + XID-based identifiers (need external crates; the
   hooks are noted in `lexer.rs`). _(Trojan-Source/bidi rejection is implemented.)_
-- Ownership / borrow checker + lifetime inference (designed in
-  `docs/design/05-memory-model.md`).
-- References + `&mut self`, arrays/`Vec`, `f64`, closures, generics, traits,
-  modules, error handling, macros (designed; not yet built).
-- LLVM (release) + Cranelift (debug) backends behind a backend boundary.
+- General references (`&T` beyond `self`) + lifetime inference (designed in
+  `docs/design/05-memory-model.md`). The move checker tracks whole variables;
+  field projections are implicit clones for now.
+- Closures, generics, traits, modules, macros (designed; not yet built).
+- Growing the native (Cranelift) backend beyond the int/bool subset:
+  strings, structs, arrays, Result; overflow traps to match the interpreter.
 - The full per-stage crate split (Phase 9 monorepo).
 
 ## License

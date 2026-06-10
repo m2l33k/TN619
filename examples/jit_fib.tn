@@ -1,0 +1,29 @@
+// TN619 — native-code demo (`tnc jit examples/jit_fib.tn`).
+// The int/bool subset compiles straight to machine code via Cranelift.
+// Trilingual as ever: an English fib, a French boucle, an Arabic مضروب.
+fn fib(n: int) -> int {
+    if n < 2 { n } else { fib(n - 1) + fib(n - 2) }
+}
+
+fonction somme_jusqu(n: entier) -> entier {
+    variable s = 0
+    pour i dans 1..n {
+        s = s + i
+    }
+    s + n
+}
+
+دالة مضروب(ن: عدد) -> عدد {
+    اذا ن <= ١ { ١ } وإلا { ن * مضروب(ن - ١) }
+}
+
+fn main() {
+    print(fib(20))
+    print(somme_jusqu(100))
+    print(مضروب(10))
+    var i = 0
+    while i < 3 {
+        print(i, i * i)
+        i = i + 1
+    }
+}

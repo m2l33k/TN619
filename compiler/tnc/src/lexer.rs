@@ -24,11 +24,10 @@ pub struct Lexer<'a> {
 
 impl<'a> Lexer<'a> {
     pub fn new(src: &'a str) -> Self {
-        Lexer {
-            src,
-            pos: 0,
-            line: 1,
-        }
+        // Skip a UTF-8 byte-order mark — Windows editors and PowerShell
+        // routinely prepend one, and it is not part of the program.
+        let pos = if src.starts_with('\u{FEFF}') { 3 } else { 0 };
+        Lexer { src, pos, line: 1 }
     }
 
     /// The next char without consuming it. O(1): decodes a single scalar.
@@ -279,7 +278,10 @@ impl<'a> Lexer<'a> {
             ')' => RParen,
             '{' => LBrace,
             '}' => RBrace,
+            '[' => LBracket,
+            ']' => RBracket,
             ',' | '،' => Comma, // bilingual comma fold
+            '?' | '؟' => Question, // bilingual question-mark fold (error propagation)
             '&' => Amp,
             '=' => {
                 if self.peek() == Some('=') {

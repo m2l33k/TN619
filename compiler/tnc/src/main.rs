@@ -1,13 +1,15 @@
 //! TN619 bootstrap compiler CLI (`tnc`).
 //!
 //! Usage:
-//!   tnc run <file.tn>     Lex, parse, type-check, and execute a program.
+//!   tnc run <file.tn>     Lex, parse, type-check, and execute (interpreter).
+//!   tnc jit <file.tn>     Compile the int/bool subset to NATIVE code and run.
 //!   tnc check <file.tn>   Type-check only.
 //!   tnc tokens <file.tn>  Dump the token stream (proves trilingual lexing).
 //!   tnc serve [port]      Start the local web playground (default port 8080).
 
 mod ast;
 mod interp;
+mod jit;
 mod lexer;
 mod parser;
 mod server;
@@ -17,6 +19,18 @@ mod typeck;
 use std::process::ExitCode;
 
 fn main() -> ExitCode {
+    // The tree-walking interpreter recurses proportionally to program nesting
+    // and call depth; give it a deep stack instead of inheriting the OS
+    // default (which debug builds can blow on e.g. fib(20)).
+    std::thread::Builder::new()
+        .stack_size(256 * 1024 * 1024)
+        .spawn(real_main)
+        .expect("failed to spawn main thread")
+        .join()
+        .expect("main thread panicked")
+}
+
+fn real_main() -> ExitCode {
     let args: Vec<String> = std::env::args().collect();
 
     // `serve [port]` takes no source file.
@@ -37,7 +51,7 @@ fn main() -> ExitCode {
         [_, cmd, path] => (cmd.as_str(), path.as_str()),
         [_, path] => ("run", path.as_str()),
         _ => {
-            eprintln!("usage: tnc [run|check|tokens] <file.tn>  |  tnc serve [port]");
+            eprintln!("usage: tnc [run|jit|check|tokens] <file.tn>  |  tnc serve [port]");
             return ExitCode::FAILURE;
         }
     };
@@ -83,6 +97,12 @@ fn run(cmd: &str, src: &str) -> Result<(), String> {
             let output = interp::Interp::new().run(&program)?;
             print!("{}", output);
             Ok(())
+        }
+        "jit" => {
+            // Same front-end and checks; native code generation instead of
+            // tree-walking. Output goes straight to stdout.
+            typeck::Checker::new().check(&program)?;
+            jit::jit_run(&program)
         }
         other => Err(format!("unknown command '{}'", other)),
     }

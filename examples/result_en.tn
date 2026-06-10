@@ -1,0 +1,28 @@
+// TN619 — Result<T, E> and the `?` operator (English surface)
+fn safe_div(a: int, b: int) -> Result<int, str> {
+    if b == 0 {
+        return Err("division by zero")
+    }
+    Ok(a / b)
+}
+
+// `?` unwraps Ok or propagates Err to the caller.
+fn average(a: int, b: int, divisor: int) -> Result<int, str> {
+    let x = safe_div(a, divisor)?
+    let y = safe_div(b, divisor)?
+    Ok((x + y) / 2)
+}
+
+fn describe(r: Result<int, str>) -> str {
+    match r {
+        Ok(v) => "ok: {v}",
+        Err(e) => "error: {e}",
+    }
+}
+
+fn main() {
+    print(describe(safe_div(10, 2)))
+    print(describe(safe_div(1, 0)))
+    print(describe(average(10, 20, 5)))
+    print(describe(average(10, 20, 0)))
+}
